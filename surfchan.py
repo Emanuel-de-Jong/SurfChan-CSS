@@ -3,6 +3,10 @@ import socket
 HOST = '127.0.0.1'
 PORT = 27015
 
+def run_ai(input):
+    # Will run the AI to get player movement
+    return "forward,rotate_right"
+
 def main():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
@@ -15,9 +19,10 @@ def main():
                 data = conn.recv(256)
                 if not data:
                     break
+                
                 message = data.decode().strip()
                 print("Received from plugin:", message)
-                command = "Hello from Python\n"
+                command = run_ai(message)
                 conn.sendall(command.encode())
 
 if __name__ == '__main__':
