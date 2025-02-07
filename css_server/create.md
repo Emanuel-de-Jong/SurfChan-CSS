@@ -1,0 +1,11 @@
+- Download
+    - steamcmd
+    - MetaMod
+    - SourceMod
+- Extract steamcmd to `steamcmd/`
+- Run `steamcmd/steamcmd.exe`
+    - `force_install_dir [PATH_TO_REPO]\css_server\server`
+    - `login anonymous`
+    - `app_update 232330 validate`
+- Extract MetaMod to `server/cstrike`
+- Extract SourceMod to `server/cstrike`
