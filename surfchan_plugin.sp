@@ -1,42 +1,87 @@
 #include <sourcemod>
+#include <sdktools>
 #include <socket>
- 
-public Plugin myinfo =
-{
-	name = "surfchan_Plugin",
+
+public Plugin myinfo = {
+    name = "surfchan_plugin",
+    author = "Anon",
+    description = "SurfChan",
+    version = "0.1"
 };
 
-#pragma newdecls required
-#pragma semicolon 1
+#define SERVER_IP "127.0.0.1"
+#define SERVER_PORT 27015
+
+Socket g_socket;
+bool g_connected = false;
+bool g_sending = false;
 
 public void OnPluginStart() {
-	Socket socket = new Socket(SOCKET_TCP, OnSocketError);
-	File hFile = OpenFile("dl.htm", "wb");
-	socket.SetArg(hFile);
-	socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, "127.0.0.1", 27015);
+    g_socket = new Socket(SOCKET_TCP, OnSocketError);
+    g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_IP, SERVER_PORT);
+    
+    HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_PostNoCopy);
 }
 
-public void OnSocketConnected(Socket socket, any arg) {
-	char requestStr[100];
-	FormatEx(
-		requestStr,
-		sizeof(requestStr),
-		"Hello from CSS\n"
-	);
-	socket.Send(requestStr);
+public void OnGameFrame() {
+    if (g_connected && !g_sending) {
+        g_sending = true;
+        g_socket.Send("tick_update\n");
+    }
 }
 
-public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSize, any hFile) {
-    PrintToServer(receiveData);
+public void OnSocketConnected(Socket socket, any data) {
+    g_connected = true;
+    PrintToServer("Connected to AI server.");
 }
 
-public void OnSocketDisconnected(Socket socket, any hFile) {
-	CloseHandle(hFile);
-	CloseHandle(socket);
+public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSize, any data) {
+    g_sending = false;
+
+    char command[64];
+    strcopy(command, sizeof(command), receiveData);
+    ProcessMovement(command);
 }
 
-public void OnSocketError(Socket socket, const int errorType, const int errorNum, any hFile) {
-	LogError("socket error %d (errno %d)", errorType, errorNum);
-	CloseHandle(hFile);
-	CloseHandle(socket);
+public void OnSocketDisconnected(Socket socket, any data) {
+    g_connected = false;
+    PrintToServer("Disconnected from AI server. Reconnecting...");
+    g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_IP, SERVER_PORT);
+}
+
+public void OnSocketError(Socket socket, const int errorType, const int errorNum, any data) {
+    g_connected = false;
+    LogError("Socket error %d (errno %d). Reconnecting...", errorType, errorNum);
+    g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_IP, SERVER_PORT);
+}
+
+void ProcessMovement(const char[] command) {
+    int client = GetAnyPlayer();
+    if (client == 0) return;
+
+    if (StrContains(command, "move_forward") != -1) {
+        TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, view_as<float>({0.0, 200.0, 0.0}));
+    }
+    if (StrContains(command, "rotate_right") != -1) {
+        float angles[3];
+        GetClientEyeAngles(client, angles);
+        angles[1] += 10.0;  // Rotate right by 10 degrees
+        TeleportEntity(client, NULL_VECTOR, angles, NULL_VECTOR);
+    }
+}
+
+int GetAnyPlayer() {
+    for (int i = 1; i <= MaxClients; i++) {
+        if (IsClientInGame(i) && IsPlayerAlive(i)) {
+            return i;
+        }
+    }
+    return 0;
+}
+
+public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast) {
+    // Attempt to reconnect in case of disconnection
+    if (!g_connected) {
+        g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_IP, SERVER_PORT);
+    }
 }
