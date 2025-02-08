@@ -76,7 +76,7 @@ async def run():
 
         asyncio.create_task(process_messages())
 
-        await send_message(MESSAGE_TYPE.TEST, "hello from python")
+        await send_message(MESSAGE_TYPE.TEST, "Hello from python")
 
         print("Press enter to start training...")
         input()
