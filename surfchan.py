@@ -3,6 +3,7 @@ import subprocess
 import traceback
 import asyncio
 import shutil
+import queue
 import os
 from enum import Enum
 
@@ -44,6 +45,7 @@ config.read('config.cfg')
 css_process = None
 server = None
 cwriter = None
+message_queue = queue.Queue()
 
 def main():
     try:
@@ -113,7 +115,7 @@ async def start_server():
     server = await asyncio.start_server(handle_client, config.get('server', 'host'), config.getint('server', 'port'))
 
 async def handle_client(reader, writer):
-    global cwriter
+    global cwriter, message_queue
     cwriter = writer
 
     addr = writer.get_extra_info('peername')
@@ -128,7 +130,11 @@ async def handle_client(reader, writer):
 
             message_str = data.decode().strip()
             message = await decode_message(message_str)
-            await handle_message(message)
+            if not message:
+                continue
+
+            message_queue.put(message)
+            check_messages()
     except asyncio.CancelledError:
         pass
     except Exception as e:
@@ -138,6 +144,16 @@ async def handle_client(reader, writer):
         cwriter = None
         writer.close()
         await writer.wait_closed()
+
+async def check_messages():
+    global message_queue
+    if message_queue.empty():
+        return
+    
+    if message_queue.qsize() > 1:
+        print(f"MESSAGES ARE STACKING! QUEUE SIZE: {message_queue.qsize()}")
+        
+    await handle_message(message_queue.get())
 
 async def handle_message(message):
     if message.type == MESSAGE_TYPE.TEST:
