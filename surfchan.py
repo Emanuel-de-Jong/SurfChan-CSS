@@ -3,7 +3,6 @@ import subprocess
 import traceback
 import asyncio
 import shutil
-import queue
 import os
 from enum import Enum
 
@@ -33,7 +32,7 @@ async def decode_message(message_str):
     
     try:
         message_type = int(message_parts[0])
-    except Exception as e:
+    except Exception:
         print(f"Invalid message type: {message_parts[0]}")
         return None
     
@@ -45,7 +44,7 @@ config.read('config.cfg')
 css_process = None
 server = None
 cwriter = None
-message_queue = queue.Queue()
+message_queue = asyncio.Queue()
 
 def main():
     try:
@@ -54,7 +53,7 @@ def main():
         loop.run_until_complete(run())
     except KeyboardInterrupt:
         loop.run_until_complete(shutdown_handler())
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
     finally:
         loop.close()
@@ -74,6 +73,9 @@ async def run():
 
         while not cwriter:
             await asyncio.sleep(0.1)
+
+        asyncio.create_task(process_messages())
+
         await send_message(MESSAGE_TYPE.TEST, "hello from python")
 
         print("Press enter to start training...")
@@ -85,7 +87,7 @@ async def run():
             await asyncio.sleep(0.1)
     except asyncio.CancelledError:
         pass
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
     finally:
         if server:
@@ -133,11 +135,10 @@ async def handle_client(reader, writer):
             if not message:
                 continue
 
-            message_queue.put(message)
-            check_messages()
+            await message_queue.put(message)
     except asyncio.CancelledError:
         pass
-    except Exception as e:
+    except Exception:
         traceback.print_exc()
     finally:
         print(f"Disconnecting {addr}...")
@@ -145,15 +146,16 @@ async def handle_client(reader, writer):
         writer.close()
         await writer.wait_closed()
 
-async def check_messages():
+async def process_messages():
     global message_queue
-    if message_queue.empty():
-        return
-    
-    if message_queue.qsize() > 1:
-        print(f"MESSAGES ARE STACKING! QUEUE SIZE: {message_queue.qsize()}")
+
+    while True:
+        message = await message_queue.get()
         
-    await handle_message(message_queue.get())
+        if not message_queue.empty():
+            print(f"MESSAGES ARE STACKING! QUEUE SIZE: {message_queue.qsize()}")
+        
+        await handle_message(message)
 
 async def handle_message(message):
     if message.type == MESSAGE_TYPE.TEST:
