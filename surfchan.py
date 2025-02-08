@@ -119,7 +119,8 @@ async def start_css():
 
 async def start_server():
     global server_process
-    server_process = subprocess.Popen(["css_server/server/srcds.exe", "-console", "-game", "cstrike", "-insecure", "-tickrate", "66", "+maxplayers", "4", "+map", "surf_beginner"])
+    server_process = subprocess.Popen(["css_server/server/srcds.exe", "-console", "-game", "cstrike", "-insecure", "-tickrate", "66", \
+        "+maxplayers", "4", "+map", "surf_beginner"])
 
 async def start_socket():
     global socket
