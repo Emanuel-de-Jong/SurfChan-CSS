@@ -3,7 +3,6 @@ import subprocess
 import traceback
 import asyncio
 import shutil
-import signal
 import os
 from enum import Enum
 
@@ -21,12 +20,27 @@ class Message:
         return f"{self.type.value}:{self.data}"
 
 async def decode_message(message_str):
+    if not message_str:
+        print("Empty message received")
+        return None
+
     message_parts = message_str.split(":")
-    return Message(MESSAGE_TYPE(int(message_parts[0])), message_parts[1])
+    if len(message_parts) != 2:
+        print(f"Message has invalid format: {message_str}")
+        return None
+    
+    try:
+        message_type = int(message_parts[0])
+    except Exception as e:
+        print(f"Invalid message type: {message_parts[0]}")
+        return None
+    
+    return Message(MESSAGE_TYPE(message_type), message_parts[1])
 
 config = configparser.ConfigParser()
 config.read('config.cfg')
 
+css_process = None
 server = None
 cwriter = None
 
@@ -52,8 +66,8 @@ async def run():
     global server
 
     try:
-        await run_css()
-        await run_server()
+        await start_css()
+        await start_server()
 
         while True:
             await asyncio.sleep(0.5)
@@ -66,10 +80,15 @@ async def run():
         if server:
             server.close()
             await server.wait_closed()
+        
+        if css_process and config.getboolean('css', 'close_on_script_close'):
+            css_process.kill()
 
-async def run_css():
+async def start_css():
+    global css_process
+
     server_maps_dir_path = os.path.join("css_server", "server", "cstrike", "maps")
-    css_path = config.get('general', 'css_path')
+    css_path = config.get('css', 'path')
     css_maps_dir_path = os.path.join(css_path, "cstrike", "maps")
     for map_path in os.listdir(server_maps_dir_path):
         src = os.path.join(server_maps_dir_path, map_path)
@@ -78,9 +97,9 @@ async def run_css():
             shutil.copy2(src, dst)
 
     css_exe_path = os.path.join(css_path, "hl2.exe")
-    subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", "+connect", config.get('server', 'local_ip')])
+    css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", "+connect", config.get('server', 'local_ip')])
 
-async def run_server():
+async def start_server():
     global server
     server = await asyncio.start_server(handle_client, config.get('server', 'host'), config.getint('server', 'port'))
 
@@ -101,9 +120,12 @@ async def handle_client(reader, writer):
             message_str = data.decode().strip()
             message = await decode_message(message_str)
             await handle_message(message)
+    except asyncio.CancelledError:
+        pass
     except Exception as e:
         traceback.print_exc()
     finally:
+        print(f"Disconnecting {addr}...")
         cwriter = None
         writer.close()
         await writer.wait_closed()
