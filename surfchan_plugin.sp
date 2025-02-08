@@ -55,8 +55,7 @@ Socket g_socket;
 bool g_isConnected = false;
 bool g_isStarted = false;
 int g_tickCount = 0;
-int g_botCount = 0;
-int g_botIds[8];
+int g_botId = -1;
 
 public void OnPluginStart() {
     g_socket = new Socket(SOCKET_TCP, OnSocketError);
@@ -94,7 +93,7 @@ public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSiz
         SendMessage(TEST, "Hello from CSS");
     } else if (messageType == START) {
         g_isStarted = true;
-        SetBots();
+        SetBot();
     } else if (messageType == MOVE) {
         Move(messageData);
     }
@@ -110,29 +109,21 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
 }
 
 void Move(const char[] data) {
-    for (int i = 0; i < g_botCount; i++) {
-        int botId = g_botIds[i];
-        if (!IsClientInGame(botId) || !IsPlayerAlive(botId)) {
-            continue;
-        }
+    if (g_botId == -1) {
+        return;
+    }
 
-        // FakeClientCommand(botId, "-forward");
-        // FakeClientCommand(botId, "-back");
-        // FakeClientCommand(botId, "-moveleft");
-        // FakeClientCommand(botId, "-moveright");
-        // FakeClientCommand(botId, "-jump");
-        // FakeClientCommand(botId, "-duck");
+    PrintToServer("Moving...");
 
-        if (StrContains(data, "move_forward") != -1) {
-            FakeClientCommand(botId, "+forward");
-        }
-    
-        if (StrContains(data, "rotate_right") != -1) {
-            float angles[3];
-            GetClientEyeAngles(botId, angles);
-            angles[1] += 10.0;
-            TeleportEntity(botId, NULL_VECTOR, angles, NULL_VECTOR);
-        }
+    if (StrContains(data, "move_forward") != -1) {
+        FakeClientCommand(g_botId, "+forward");
+    }
+
+    if (StrContains(data, "rotate_right") != -1) {
+        float angles[3];
+        GetClientEyeAngles(g_botId, angles);
+        angles[1] += 10.0;
+        TeleportEntity(g_botId, NULL_VECTOR, angles, NULL_VECTOR);
     }
 }
 
@@ -147,32 +138,16 @@ public void OnGameFrame() {
     }
 }
 
-void SetBots() {
-    int botCount = 0;
-    int botIds[8];
-    for (int i = 1; i <= MaxClients; i++) {
-        if (IsClientInGame(i) && IsFakeClient(i)) {
-            botIds[botCount] = i;
-            botCount++;
-        }
-    }
+void SetBot() {
+    int botId = CreateFakeClient("bot");
+    
+    SetEntProp(botId, Prop_Data, "m_nButtons", 0);
+    SetEntProp(botId, Prop_Data, "m_afButtonForced", 0);
+    SetEntProp(botId, Prop_Data, "m_afButtonLast", 0);
+    SetEntProp(botId, Prop_Data, "m_bAllowAutoMovement", 0);
 
-    if (botCount == 0) {
-        PrintToServer("Could not find bots");
-        return;
-    }
+    ChangeClientTeam(botId, 3);
+    CS_RespawnPlayer(botId);
 
-    for (int i = 0; i < botCount; i++) {
-        int botId = botIds[i];
-        
-        SetEntProp(botId, Prop_Data, "m_nButtons", 0);
-        SetEntProp(botId, Prop_Data, "m_afButtonForced", 0);
-        SetEntProp(botId, Prop_Data, "m_afButtonLast", 0);
-        SetEntProp(botId, Prop_Data, "m_bAllowAutoMovement", 0);
-
-        CS_RespawnPlayer(botId);
-    }
-
-    g_botCount = botCount;
-    g_botIds = botIds;
+    g_botId = botId;
 }
