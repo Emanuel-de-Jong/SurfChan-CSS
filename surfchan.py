@@ -7,10 +7,10 @@ import os
 from enum import Enum
 
 class MESSAGE_TYPE(Enum):
-    TEST = 0
-    START = 1
-    TICK = 2
-    MOVE = 3
+    TEST = 1
+    START = 2
+    TICK = 3
+    MOVE = 4
 
 class Message:
     def __init__(self, type, data):

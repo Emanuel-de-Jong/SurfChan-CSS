@@ -1,53 +1,43 @@
 #include <sourcemod>
 #include <sdktools>
 #include <socket>
-#include <sstream>
-#include <string>
-#include <optional>
 
-enum class MESSAGE_TYPE {
-    TEST = 0,
-    START = 1,
-    TICK = 2,
-    MOVE = 3
+enum MESSAGE_TYPE {
+    TEST = 1,
+    START = 2,
+    TICK = 3,
+    MOVE = 4
 };
 
-class Message {
-public:
-    MESSAGE_TYPE type;
-    std::string data;
-
-    Message(MESSAGE_TYPE type, const std::string& data)
-        : type(type), data(data) {}
-
-    std::string toString() const {
-        return std::to_string(static_cast<int>(type)) + ":" + data;
+bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] data, int dataLen) {
+    if (strlen(messageStr) == 0) {
+        LogError("Empty message received");
+        return false;
     }
 
-    static std::optional<Message> DecodeMessage(const std::string& messageStr) {
-        if (messageStr.empty()) {
-            LogError("Empty message received");
-            return std::nullopt;
-        }
-
-        size_t delimiterPos = messageStr.find(':');
-        if (delimiterPos == std::string::npos) {
-            LogError("Message has invalid format: %s", messageStr.c_str());
-            return std::nullopt;
-        }
-
-        std::string typeStr = messageStr.substr(0, delimiterPos);
-        std::string dataStr = messageStr.substr(delimiterPos + 1);
-
-        try {
-            int messageTypeInt = std::stoi(typeStr);
-            return Message(static_cast<MESSAGE_TYPE>(messageTypeInt), dataStr);
-        } catch (...) {
-            LogError("Invalid message type: %s", typeStr.c_str());
-            return std::nullopt;
-        }
+    int delimiterPos = StrContains(messageStr, ":");
+    if (delimiterPos == -1) {
+        LogError("Message has invalid format: %s", messageStr);
+        return false;
     }
-};
+
+    char typeStr[8];
+    char dataStr[256];
+    
+    strcopy(typeStr, sizeof(typeStr), messageStr);
+    typeStr[delimiterPos] = '\0';  // Terminate at delimiter
+    strcopy(dataStr, sizeof(dataStr), messageStr[delimiterPos + 1]);
+
+    int typeInt = StringToInt(typeStr);
+    if (typeInt == 0) {
+        LogError("Invalid message type: %s", typeStr);
+        return false;
+    }
+
+    messageType = view_as<MESSAGE_TYPE>(typeInt);
+    strcopy(data, dataLen, dataStr);
+    return true;
+}
 
 public Plugin myinfo = {
     name = "surfchan_plugin",
@@ -86,35 +76,42 @@ public void OnSocketError(Socket socket, const int errorType, const int errorNum
 }
 
 public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSize, any data) {
-    std::string message_str = std::string(receiveData);
-    auto message = Message::DecodeMessage(message_str);
-    if (!message.has_value()) {
+    char messageStr[256];
+    strcopy(messageStr, sizeof(messageStr), receiveData);
+
+    MESSAGE_TYPE messageType;
+    char messageData[256];
+
+    if (!DecodeMessage(messageStr, messageType, messageData, sizeof(messageData))) {
         return;
     }
 
-    if (message->type == MESSAGE_TYPE::TEST) {
-        PrintToServer(message->data);
-        SendMessage(MESSAGE_TYPE::TEST, "Hello from CSS");
-    }
-    else if (message->type == MESSAGE_TYPE::START) {
+    if (messageType == TEST) {
+        PrintToServer("Received: %s", messageData);
+        SendMessage(TEST, "Hello from CSS");
+    } else if (messageType == START) {
         g_isStarted = true;
-    }
-    else if (message->type == MESSAGE_TYPE::MOVE) {
-        ProcessMovement(message->data);
+    } else if (messageType == MOVE) {
+        ProcessMovement(messageData);
     }
 }
 
-void SendMessage(MESSAGE_TYPE type, const std::string& data) {
-    Message message(type, data);
-    g_socket.Send(message.toString());
+void SendMessage(MESSAGE_TYPE type, const char[] data) {
+    char message[256];
+    Format(message, sizeof(message), "%d:%s", type, data);
+    
+    if (g_isConnected) {
+        g_socket.Send(message);
+    }
 }
 
-void ProcessMovement(const std::string& data) {
+void ProcessMovement(const char[] data) {
     int client = GetAnyPlayer();
     if (client == 0) return;
 
     if (StrContains(data, "move_forward") != -1) {
-        TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, view_as<float>({0.0, 200.0, 0.0}));
+        float velocity[3] = {0.0, 200.0, 0.0};
+        TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
     }
 
     if (StrContains(data, "rotate_right") != -1) {
@@ -138,9 +135,9 @@ public void OnGameFrame() {
     if (g_isConnected && g_isStarted) {
         g_tickCount++;
 
-        if (g_tickCount == TICKS_PER_MESSAGE) {
+        if (g_tickCount >= TICKS_PER_MESSAGE) {
             g_tickCount = 0;
-            SendMessage(MESSAGE_TYPE::TICK, "");
+            SendMessage(TICK, "");
         }
     }
 }
