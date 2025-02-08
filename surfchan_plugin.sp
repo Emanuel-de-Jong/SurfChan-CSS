@@ -1,4 +1,5 @@
 #include <sourcemod>
+#include <cstrike>
 #include <sdktools>
 #include <socket>
 
@@ -54,16 +55,12 @@ Socket g_socket;
 bool g_isConnected = false;
 bool g_isStarted = false;
 int g_tickCount = 0;
-int g_botId = -1;
 int g_botCount = 0;
 int g_botIds[8];
 
 public void OnPluginStart() {
     g_socket = new Socket(SOCKET_TCP, OnSocketError);
     g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_HOST, SERVER_PORT);
-
-    HookEvent("round_start", OnRoundStart, EventHookMode_PostNoCopy);
-    HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_PostNoCopy);
 }
 
 public void OnSocketConnected(Socket socket, any data) {
@@ -97,6 +94,7 @@ public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSiz
         SendMessage(TEST, "Hello from CSS");
     } else if (messageType == START) {
         g_isStarted = true;
+        SetBots();
     } else if (messageType == MOVE) {
         Move(messageData);
     }
@@ -112,44 +110,30 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
 }
 
 void Move(const char[] data) {
-    if (g_botId == -1 || !IsClientInGame(g_botId) || !IsPlayerAlive(g_botId)) {
-        return;
-    }
+    for (int i = 0; i < g_botCount; i++) {
+        int botId = g_botIds[i];
+        if (!IsClientInGame(botId) || !IsPlayerAlive(botId)) {
+            continue;
+        }
 
-    if (StrContains(data, "move_forward") == -1) {
-        FakeClientCommand(g_botId, "-forward");
-    }
-    else {
-        FakeClientCommand(g_botId, "+forward");
-    }
+        // FakeClientCommand(botId, "-forward");
+        // FakeClientCommand(botId, "-back");
+        // FakeClientCommand(botId, "-moveleft");
+        // FakeClientCommand(botId, "-moveright");
+        // FakeClientCommand(botId, "-jump");
+        // FakeClientCommand(botId, "-duck");
 
-    if (StrContains(data, "rotate_right") != -1) {
-        float angles[3];
-        GetClientEyeAngles(g_botId, angles);
-        angles[1] += 10.0;
-        TeleportEntity(g_botId, NULL_VECTOR, angles, NULL_VECTOR);
-    }
-
-    // for (int i = 0; i < g_botCount; i++) {
-    //     int botId = g_botIds[i];
-    //     if (!IsClientInGame(i) || !IsPlayerAlive(botId)) {
-    //         continue;
-    //     }
-
-    //     if (StrContains(data, "move_forward") == -1) {
-    //         FakeClientCommand(botId, "-forward");
-    //     }
-    //     else {
-    //         FakeClientCommand(botId, "+forward");
-    //     }
+        if (StrContains(data, "move_forward") != -1) {
+            FakeClientCommand(botId, "+forward");
+        }
     
-    //     if (StrContains(data, "rotate_right") != -1) {
-    //         float angles[3];
-    //         GetClientEyeAngles(botId, angles);
-    //         angles[1] += 10.0;
-    //         TeleportEntity(botId, NULL_VECTOR, angles, NULL_VECTOR);
-    //     }
-    // }
+        if (StrContains(data, "rotate_right") != -1) {
+            float angles[3];
+            GetClientEyeAngles(botId, angles);
+            angles[1] += 10.0;
+            TeleportEntity(botId, NULL_VECTOR, angles, NULL_VECTOR);
+        }
+    }
 }
 
 public void OnGameFrame() {
@@ -163,39 +147,32 @@ public void OnGameFrame() {
     }
 }
 
-public OnRoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
-    PrintToServer("OnRoundStartOnRoundStartOnRoundStartOnRoundStartOnRoundStart");
-    g_botId = CreateFakeClient("bot_1");
-    ChangeClientTeam(g_botId, 3);
-    CS_RespawnPlayer(g_botId);
+void SetBots() {
+    int botCount = 0;
+    int botIds[8];
+    for (int i = 1; i <= MaxClients; i++) {
+        if (IsClientInGame(i) && IsFakeClient(i)) {
+            botIds[botCount] = i;
+            botCount++;
+        }
+    }
 
-    // int botCount = 0;
-    // int botIds[8];
-    // for (int i = 1; i <= MaxClients; i++) {
-    //     if (IsClientInGame(i) && IsFakeClient(i)) {
-    //         botIds[botCount] = i;
-    //         botCount++;
-    //     }
-    // }
+    if (botCount == 0) {
+        PrintToServer("Could not find bots");
+        return;
+    }
 
-    // if (botCount == 0) {
-    //     PrintToServer("Could not find bots");
-    //     return Plugin_Handled;
-    // }
+    for (int i = 0; i < botCount; i++) {
+        int botId = botIds[i];
+        
+        SetEntProp(botId, Prop_Data, "m_nButtons", 0);
+        SetEntProp(botId, Prop_Data, "m_afButtonForced", 0);
+        SetEntProp(botId, Prop_Data, "m_afButtonLast", 0);
+        SetEntProp(botId, Prop_Data, "m_bAllowAutoMovement", 0);
 
-    // for (int i = 0; i < botCount; i++) {
-    //     int botId = botIds[i];
-    //     SetEntProp(botId, Prop_Data, "m_bInDuckJump", 0);
-    //     SetEntProp(botId, Prop_Data, "m_afButtonForced", 0);
-    //     SetEntProp(botId, Prop_Data, "m_nButtons", 0);
-    //     SetEntProp(botId, Prop_Data, "m_afButtonLast", 0);
-    //     SetEntProp(botId, Prop_Data, "m_bAllowAutoMovement", 0);
-    // }
+        CS_RespawnPlayer(botId);
+    }
 
-    // g_botCount = botCount;
-    // g_botIds = botIds;
-}
-
-public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast) {
-    PrintToServer("OnPlayerSpawnOnPlayerSpawnOnPlayerSpawn");
+    g_botCount = botCount;
+    g_botIds = botIds;
 }
