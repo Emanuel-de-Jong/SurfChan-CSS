@@ -92,7 +92,7 @@ public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSiz
     } else if (messageType == START) {
         g_isStarted = true;
     } else if (messageType == MOVE) {
-        ProcessMovement(messageData);
+        Move(messageData);
     }
 }
 
@@ -105,30 +105,28 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
     }
 }
 
-void ProcessMovement(const char[] data) {
-    int client = GetAnyPlayer();
-    if (client == 0) return;
+void Move(const char[] data) {
+    int botId = -1;
+    for (int i = 0; i <= MaxClients; i++) {
+        if (IsClientInGame(i) && IsPlayerAlive(i) && IsFakeClient(i)) {
+            botId = i;
+            break;
+        }
+    }
+
+    if (botId == -1) return;
 
     if (StrContains(data, "move_forward") != -1) {
         float velocity[3] = {0.0, 200.0, 0.0};
-        TeleportEntity(client, NULL_VECTOR, NULL_VECTOR, velocity);
+        TeleportEntity(botId, NULL_VECTOR, NULL_VECTOR, velocity);
     }
 
     if (StrContains(data, "rotate_right") != -1) {
         float angles[3];
-        GetClientEyeAngles(client, angles);
+        GetClientEyeAngles(botId, angles);
         angles[1] += 10.0;  // Rotate right by 10 degrees
-        TeleportEntity(client, NULL_VECTOR, angles, NULL_VECTOR);
+        TeleportEntity(botId, NULL_VECTOR, angles, NULL_VECTOR);
     }
-}
-
-int GetAnyPlayer() {
-    for (int i = 1; i <= MaxClients; i++) {
-        if (IsClientInGame(i) && IsPlayerAlive(i)) {
-            return i;
-        }
-    }
-    return 0;
 }
 
 public void OnGameFrame() {
