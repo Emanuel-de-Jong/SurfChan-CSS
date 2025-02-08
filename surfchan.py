@@ -31,22 +31,22 @@ server = None
 cwriter = None
 
 def main():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(shutdown_handler()))
-
     try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
         loop.run_until_complete(run())
     except KeyboardInterrupt:
-        print("Shutting down gracefully...")
+        loop.run_until_complete(shutdown_handler())
+    except Exception as e:
+        traceback.print_exc()
     finally:
         loop.close()
 
 async def shutdown_handler():
     print("\nShutting down...")
-    for task in asyncio.all_tasks():
-        task.cancel()
+    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+    [task.cancel() for task in tasks]
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 async def run():
     global server
@@ -58,6 +58,8 @@ async def run():
         while True:
             await asyncio.sleep(0.5)
             await send_message(MESSAGE_TYPE.TEST, "hello from python")
+    except asyncio.CancelledError:
+        pass
     except Exception as e:
         traceback.print_exc()
     finally:
