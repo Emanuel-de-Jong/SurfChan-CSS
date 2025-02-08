@@ -54,7 +54,8 @@ Socket g_socket;
 bool g_isConnected = false;
 bool g_isStarted = false;
 int g_tickCount = 0;
-int g_botId = -1;
+int g_botCount = 0;
+int g_botIds[8];
 
 public void OnPluginStart() {
     g_socket = new Socket(SOCKET_TCP, OnSocketError);
@@ -109,20 +110,25 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
 }
 
 void Move(const char[] data) {
-    if (g_botId == -1) return;
+    for (int i = 0; i < g_botCount; i++) {
+        int botId = g_botIds[i];
+        if (!IsClientInGame(i) || !IsPlayerAlive(botId)) {
+            continue;
+        }
 
-    if (StrContains(data, "move_forward") == -1) {
-        FakeClientCommand(g_botId, "-forward");
-    }
-    else {
-        FakeClientCommand(g_botId, "+forward");
-    }
-
-    if (StrContains(data, "rotate_right") != -1) {
-        float angles[3];
-        GetClientEyeAngles(g_botId, angles);
-        angles[1] += 10.0;
-        TeleportEntity(g_botId, NULL_VECTOR, angles, NULL_VECTOR);
+        if (StrContains(data, "move_forward") == -1) {
+            FakeClientCommand(botId, "-forward");
+        }
+        else {
+            FakeClientCommand(botId, "+forward");
+        }
+    
+        if (StrContains(data, "rotate_right") != -1) {
+            float angles[3];
+            GetClientEyeAngles(botId, angles);
+            angles[1] += 10.0;
+            TeleportEntity(botId, NULL_VECTOR, angles, NULL_VECTOR);
+        }
     }
 }
 
@@ -138,24 +144,29 @@ public void OnGameFrame() {
 }
 
 public OnRoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
-    int botId = -1;
+    int botCount = 0;
+    int botIds[8];
     for (int i = 1; i <= MaxClients; i++) {
-        if (IsPlayerAlive(i) && IsFakeClient(i)) {
-            botId = i;
-            break;
+        if (IsClientInGame(i) && IsFakeClient(i)) {
+            botIds[botCount] = i;
+            botCount++;
         }
     }
 
-    if (botId == -1) {
-        PrintToServer("Could not find bot.");
+    if (botCount == 0) {
+        PrintToServer("Could not find bots");
         return Plugin_Handled;
     }
 
-    SetEntProp(botId, Prop_Data, "m_bInDuckJump", 0);
-    SetEntProp(botId, Prop_Data, "m_afButtonForced", 0);
-    SetEntProp(botId, Prop_Data, "m_nButtons", 0);
-    SetEntProp(botId, Prop_Data, "m_afButtonLast", 0);
-    SetEntProp(botId, Prop_Data, "m_bAllowAutoMovement", 0);
+    for (int i = 0; i < botCount; i++) {
+        int botId = botIds[i];
+        SetEntProp(botId, Prop_Data, "m_bInDuckJump", 0);
+        SetEntProp(botId, Prop_Data, "m_afButtonForced", 0);
+        SetEntProp(botId, Prop_Data, "m_nButtons", 0);
+        SetEntProp(botId, Prop_Data, "m_afButtonLast", 0);
+        SetEntProp(botId, Prop_Data, "m_bAllowAutoMovement", 0);
+    }
 
-    g_botId = botId;
+    g_botCount = botCount;
+    g_botIds = botIds;
 }
