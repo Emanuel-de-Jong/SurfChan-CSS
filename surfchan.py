@@ -8,8 +8,9 @@ from enum import Enum
 
 class MESSAGE_TYPE(Enum):
     TEST = 0
-    TICK = 1
-    MOVE = 2
+    START = 1
+    TICK = 2
+    MOVE = 3
 
 class Message:
     def __init__(self, type, data):
@@ -63,15 +64,23 @@ async def shutdown_handler():
     await asyncio.gather(*tasks, return_exceptions=True)
 
 async def run():
-    global server
+    global server, cwriter
 
     try:
         await start_css()
         await start_server()
 
+        while not cwriter:
+            await asyncio.sleep(0.1)
+        await send_message(MESSAGE_TYPE.TEST, "hello from python")
+
+        print("Press enter to start training...")
+        input()
+        await send_message(MESSAGE_TYPE.START, "")
+
         while True:
-            await asyncio.sleep(0.5)
-            await send_message(MESSAGE_TYPE.TEST, "hello from python")
+            # Will show training progress later
+            await asyncio.sleep(0.1)
     except asyncio.CancelledError:
         pass
     except Exception as e:
