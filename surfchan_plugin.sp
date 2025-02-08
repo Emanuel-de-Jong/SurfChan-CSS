@@ -59,6 +59,8 @@ int g_botId = -1;
 public void OnPluginStart() {
     g_socket = new Socket(SOCKET_TCP, OnSocketError);
     g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_HOST, SERVER_PORT);
+
+    HookEvent("round_start", OnRoundStart, EventHookMode_PostNoCopy);
 }
 
 public void OnSocketConnected(Socket socket, any data) {
@@ -107,7 +109,6 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
 }
 
 void Move(const char[] data) {
-    SetBot();
     if (g_botId == -1) return;
 
     if (StrContains(data, "move_forward") == -1) {
@@ -125,25 +126,6 @@ void Move(const char[] data) {
     }
 }
 
-void SetBot() {
-    if (g_botId != -1) return;
-
-    for (int i = 1; i <= MaxClients; i++) {
-        if (IsClientInGame(i) && IsPlayerAlive(i) && IsFakeClient(i)) {
-            g_botId = i;
-            break;
-        }
-    }
-
-    if (g_botId == -1) return;
-
-    SetEntProp(g_botId, Prop_Data, "m_bInDuckJump", 0);
-    SetEntProp(g_botId, Prop_Data, "m_afButtonForced", 0);
-    SetEntProp(g_botId, Prop_Data, "m_nButtons", 0);
-    SetEntProp(g_botId, Prop_Data, "m_afButtonLast", 0);
-    SetEntProp(g_botId, Prop_Data, "m_bAllowAutoMovement", 0);
-}
-
 public void OnGameFrame() {
     if (g_isConnected && g_isStarted) {
         g_tickCount++;
@@ -153,4 +135,27 @@ public void OnGameFrame() {
             SendMessage(TICK, "");
         }
     }
+}
+
+public OnRoundStart(Handle:event, const String:name[], bool:dontBroadcast) {
+    int botId = -1;
+    for (int i = 1; i <= MaxClients; i++) {
+        if (IsPlayerAlive(i) && IsFakeClient(i)) {
+            botId = i;
+            break;
+        }
+    }
+
+    if (botId == -1) {
+        PrintToServer("Could not find bot.");
+        return Plugin_Handled;
+    }
+
+    SetEntProp(botId, Prop_Data, "m_bInDuckJump", 0);
+    SetEntProp(botId, Prop_Data, "m_afButtonForced", 0);
+    SetEntProp(botId, Prop_Data, "m_nButtons", 0);
+    SetEntProp(botId, Prop_Data, "m_afButtonLast", 0);
+    SetEntProp(botId, Prop_Data, "m_bAllowAutoMovement", 0);
+
+    g_botId = botId;
 }
