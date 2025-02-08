@@ -9,7 +9,7 @@ public Plugin myinfo = {
     version = "0.1"
 };
 
-#define SERVER_IP "127.0.0.1"
+#define SERVER_HOST "127.0.0.1"
 #define SERVER_PORT 27015
 
 Socket g_socket;
@@ -18,16 +18,9 @@ bool g_sending = false;
 
 public void OnPluginStart() {
     g_socket = new Socket(SOCKET_TCP, OnSocketError);
-    g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_IP, SERVER_PORT);
+    g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_HOST, SERVER_PORT);
     
     HookEvent("player_spawn", OnPlayerSpawn, EventHookMode_PostNoCopy);
-}
-
-public void OnGameFrame() {
-    if (g_connected && !g_sending) {
-        g_sending = true;
-        g_socket.Send("tick_update\n");
-    }
 }
 
 public void OnSocketConnected(Socket socket, any data) {
@@ -35,24 +28,24 @@ public void OnSocketConnected(Socket socket, any data) {
     PrintToServer("Connected to AI server.");
 }
 
-public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSize, any data) {
-    g_sending = false;
-
-    char command[64];
-    strcopy(command, sizeof(command), receiveData);
-    ProcessMovement(command);
-}
-
 public void OnSocketDisconnected(Socket socket, any data) {
     g_connected = false;
     PrintToServer("Disconnected from AI server. Reconnecting...");
-    g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_IP, SERVER_PORT);
+    g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_HOST, SERVER_PORT);
 }
 
 public void OnSocketError(Socket socket, const int errorType, const int errorNum, any data) {
     g_connected = false;
     LogError("Socket error %d (errno %d). Reconnecting...", errorType, errorNum);
-    g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_IP, SERVER_PORT);
+    g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_HOST, SERVER_PORT);
+}
+
+public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSize, any data) {
+    g_sending = false;
+
+    char message_str[64];
+    strcopy(message_str, sizeof(message_str), receiveData);
+    ProcessMovement(message_str);
 }
 
 void ProcessMovement(const char[] command) {
@@ -79,9 +72,9 @@ int GetAnyPlayer() {
     return 0;
 }
 
-public void OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast) {
-    // Attempt to reconnect in case of disconnection
-    if (!g_connected) {
-        g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_IP, SERVER_PORT);
+public void OnGameFrame() {
+    if (g_connected && !g_sending) {
+        g_sending = true;
+        g_socket.Send("tick_update\n");
     }
 }
