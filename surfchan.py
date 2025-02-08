@@ -30,7 +30,25 @@ config.read('config.cfg')
 server = None
 cwriter = None
 
-async def main():
+def main():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    loop.add_signal_handler(signal.SIGINT, lambda: asyncio.create_task(shutdown_handler()))
+
+    try:
+        loop.run_until_complete(run())
+    except KeyboardInterrupt:
+        print("Shutting down gracefully...")
+    finally:
+        loop.close()
+
+async def shutdown_handler():
+    print("\nShutting down...")
+    for task in asyncio.all_tasks():
+        task.cancel()
+
+async def run():
     global server
 
     try:
@@ -84,6 +102,7 @@ async def handle_client(reader, writer):
     except Exception as e:
         traceback.print_exc()
     finally:
+        cwriter = None
         writer.close()
         await writer.wait_closed()
 
@@ -92,7 +111,7 @@ async def handle_message(message):
         print(f"Received message: {message}")
     elif message.type == MESSAGE_TYPE.TICK:
         move = await run_ai(message.data)
-        send_message(MESSAGE_TYPE.MOVE, move)
+        await send_message(MESSAGE_TYPE.MOVE, move)
 
 async def run_ai(data):
     # Will run the AI to get player movement
@@ -100,7 +119,7 @@ async def run_ai(data):
 
 async def send_message(type, data):
     global cwriter
-    if not cwriter:
+    if not cwriter or cwriter.is_closing():
         return
 
     message = Message(type, data)
@@ -108,12 +127,5 @@ async def send_message(type, data):
     cwriter.write(message_str.encode())
     await cwriter.drain()
 
-def shutdown_handler():
-    print("\nShutting down...")
-    for task in asyncio.all_tasks():
-        task.cancel()
-
-signal.signal(signal.SIGINT, lambda sig, frame: asyncio.create_task(shutdown_handler()))
-
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
