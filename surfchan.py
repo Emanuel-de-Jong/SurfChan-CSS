@@ -1,21 +1,53 @@
-import socket
 import configparser
 import subprocess
+import traceback
+import asyncio
 import shutil
+import signal
 import os
+from enum import Enum
+
+class MESSAGE_TYPE(Enum):
+    TEST = 0
+    TICK = 1
+    MOVE = 2
+
+class Message:
+    def __init__(self, type, data):
+        self.type = type
+        self.data = data
+    
+    def __str__(self):
+        return f"{self.type.value}:{self.data}"
+
+async def decode_message(message_str):
+    message_parts = message_str.split(":")
+    return Message(MESSAGE_TYPE(int(message_parts[0])), message_parts[1])
 
 config = configparser.ConfigParser()
 config.read('config.cfg')
 
-def run_ai(input):
-    # Will run the AI to get player movement
-    return "move_forward,rotate_right"
+server = None
+cwriter = None
 
-def main():
-    run_css()
-    run_server()
+async def main():
+    global server
 
-def run_css():
+    try:
+        await run_css()
+        await run_server()
+
+        while True:
+            await asyncio.sleep(0.5)
+            await send_message(MESSAGE_TYPE.TEST, "hello from python")
+    except Exception as e:
+        traceback.print_exc()
+    finally:
+        if server:
+            server.close()
+            await server.wait_closed()
+
+async def run_css():
     server_maps_dir_path = os.path.join("css_server", "server", "cstrike", "maps")
     css_path = config.get('general', 'css_path')
     css_maps_dir_path = os.path.join(css_path, "cstrike", "maps")
@@ -28,31 +60,60 @@ def run_css():
     css_exe_path = os.path.join(css_path, "hl2.exe")
     subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", "+connect", config.get('server', 'local_ip')])
 
-def run_server():
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        host = config.get('server', 'host')
-        port = config.getint('server', 'port')
-        s.bind((host, port))
-        s.listen(1)
-        print(f"Python AI server listening on {host}:{port}")
+async def run_server():
+    global server
+    server = await asyncio.start_server(handle_client, config.get('server', 'host'), config.getint('server', 'port'))
 
-        conn, addr = s.accept()
-        with conn:
-            print("Connected by", addr)
+async def handle_client(reader, writer):
+    global cwriter
+    cwriter = writer
 
-            is_first_message = True
-            while True:
-                data = conn.recv(256)
-                if not data:
-                    break
-                
-                message = data.decode().strip()
-                if is_first_message:
-                    print("Received from plugin:", message)
-                    is_first_message = False
-                
-                command = run_ai(message)
-                conn.sendall(command.encode())
+    addr = writer.get_extra_info('peername')
+    print(f"Connected by {addr}")
+
+    try:
+        while True:
+            data = await reader.read(256)
+            if not data:
+                print(f"Connection closed by {addr}")
+                break
+
+            message_str = data.decode().strip()
+            message = await decode_message(message_str)
+            await handle_message(message)
+    except Exception as e:
+        traceback.print_exc()
+    finally:
+        writer.close()
+        await writer.wait_closed()
+
+async def handle_message(message):
+    if message.type == MESSAGE_TYPE.TEST:
+        print(f"Received message: {message}")
+    elif message.type == MESSAGE_TYPE.TICK:
+        move = await run_ai(message.data)
+        send_message(MESSAGE_TYPE.MOVE, move)
+
+async def run_ai(data):
+    # Will run the AI to get player movement
+    return "move_forward,rotate_right"
+
+async def send_message(type, data):
+    global cwriter
+    if not cwriter:
+        return
+
+    message = Message(type, data)
+    message_str = str(message)
+    cwriter.write(message_str.encode())
+    await cwriter.drain()
+
+def shutdown_handler():
+    print("\nShutting down...")
+    for task in asyncio.all_tasks():
+        task.cancel()
+
+signal.signal(signal.SIGINT, lambda sig, frame: asyncio.create_task(shutdown_handler()))
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
