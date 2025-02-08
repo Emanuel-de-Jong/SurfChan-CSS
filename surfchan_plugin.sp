@@ -54,6 +54,7 @@ Socket g_socket;
 bool g_isConnected = false;
 bool g_isStarted = false;
 int g_tickCount = 0;
+int g_botId = -1;
 
 public void OnPluginStart() {
     g_socket = new Socket(SOCKET_TCP, OnSocketError);
@@ -106,27 +107,41 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
 }
 
 void Move(const char[] data) {
-    int botId = -1;
-    for (int i = 0; i <= MaxClients; i++) {
-        if (IsClientInGame(i) && IsPlayerAlive(i) && IsFakeClient(i)) {
-            botId = i;
-            break;
-        }
+    SetBot();
+    if (g_botId == -1) return;
+
+    if (StrContains(data, "move_forward") == -1) {
+        FakeClientCommand(g_botId, "-forward");
     }
-
-    if (botId == -1) return;
-
-    if (StrContains(data, "move_forward") != -1) {
-        float velocity[3] = {0.0, 200.0, 0.0};
-        TeleportEntity(botId, NULL_VECTOR, NULL_VECTOR, velocity);
+    else {
+        FakeClientCommand(g_botId, "+forward");
     }
 
     if (StrContains(data, "rotate_right") != -1) {
         float angles[3];
-        GetClientEyeAngles(botId, angles);
-        angles[1] += 10.0;  // Rotate right by 10 degrees
-        TeleportEntity(botId, NULL_VECTOR, angles, NULL_VECTOR);
+        GetClientEyeAngles(g_botId, angles);
+        angles[1] += 10.0;
+        TeleportEntity(g_botId, NULL_VECTOR, angles, NULL_VECTOR);
     }
+}
+
+void SetBot() {
+    if (g_botId != -1) return;
+
+    for (int i = 1; i <= MaxClients; i++) {
+        if (IsClientInGame(i) && IsPlayerAlive(i) && IsFakeClient(i)) {
+            g_botId = i;
+            break;
+        }
+    }
+
+    if (g_botId == -1) return;
+
+    SetEntProp(g_botId, Prop_Data, "m_bInDuckJump", 0);
+    SetEntProp(g_botId, Prop_Data, "m_afButtonForced", 0);
+    SetEntProp(g_botId, Prop_Data, "m_nButtons", 0);
+    SetEntProp(g_botId, Prop_Data, "m_afButtonLast", 0);
+    SetEntProp(g_botId, Prop_Data, "m_bAllowAutoMovement", 0);
 }
 
 public void OnGameFrame() {
