@@ -42,7 +42,8 @@ config = configparser.ConfigParser()
 config.read('config.cfg')
 
 css_process = None
-server = None
+server_process = None
+socket = None
 cwriter = None
 message_queue = asyncio.Queue()
 
@@ -65,11 +66,12 @@ async def shutdown_handler():
     await asyncio.gather(*tasks, return_exceptions=True)
 
 async def run():
-    global server, cwriter
+    global server_process, socket, cwriter
 
     try:
         await start_css()
         await start_server()
+        await start_socket()
 
         while not cwriter:
             await asyncio.sleep(0.1)
@@ -90,12 +92,15 @@ async def run():
     except Exception:
         traceback.print_exc()
     finally:
-        if server:
-            server.close()
-            await server.wait_closed()
+        if socket:
+            socket.close()
+            await socket.wait_closed()
         
         if css_process and config.getboolean('css', 'close_on_script_close'):
             css_process.kill()
+        
+        if server_process and config.getboolean('server', 'close_on_script_close'):
+            server_process.kill()
 
 async def start_css():
     global css_process
@@ -113,8 +118,12 @@ async def start_css():
     css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", "+connect", config.get('server', 'local_ip')])
 
 async def start_server():
-    global server
-    server = await asyncio.start_server(handle_client, config.get('server', 'host'), config.getint('server', 'port'))
+    global server_process
+    server_process = subprocess.Popen(["css_server/server/srcds.exe", "-console", "-game", "cstrike", "-insecure", "-tickrate", "66", "+maxplayers", "4", "+map", "surf_beginner"])
+
+async def start_socket():
+    global socket
+    socket = await asyncio.start_server(handle_client, config.get('server', 'host'), config.getint('server', 'port'))
 
 async def handle_client(reader, writer):
     global cwriter, message_queue
