@@ -26,8 +26,8 @@ bool g_isConnected = false;
 bool g_isStarted = false;
 int g_tickCount = 0;
 new Handle:g_buttons;
-int g_mouseX = 0;
-int g_mouseY = 0;
+float g_mouseX = 0.0;
+float g_mouseY = 0.0;
 
 public void OnPluginStart() {
     ResetButtons();
@@ -157,8 +157,8 @@ void SetMove(const char[] data) {
     mouseXStr[delimiterPos] = '\0';
     strcopy(mouseYStr, sizeof(mouseYStr), mouseStr[delimiterPos + 1]);
 
-    g_mouseX = StringToInt(mouseXStr);
-    g_mouseY = StringToInt(mouseYStr);
+    g_mouseX = StringToFloat(mouseXStr);
+    g_mouseY = StringToFloat(mouseYStr);
 
     ResetButtons();
 
@@ -210,9 +210,16 @@ public Action OnPlayerRunCmd(
         if (isF == 1) {
             vel[0] = 100000.0;
         }
+        
+        float eyeAngles[3];
+        GetClientEyeAngles(client, eyeAngles);
 
-        mouse[0] += g_mouseX;
-        mouse[1] += g_mouseY;
+        eyeAngles[1] += g_mouseX;
+        eyeAngles[0] += g_mouseY;
+        
+        SetEntPropVector(client, Prop_Send, "m_angRotation", eyeAngles);
+
+        PrintToServer("%f", angles[1]);
 
         return Plugin_Changed;
     }

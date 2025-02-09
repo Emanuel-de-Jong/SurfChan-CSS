@@ -176,7 +176,7 @@ async def handle_message(message):
 
 async def run_ai(data):
     # Will run the AI to get player movement
-    return "n,500,0"
+    return "n,20.0,0.0"
 
 async def send_message(type, data):
     global cwriter
