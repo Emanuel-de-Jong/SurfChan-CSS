@@ -213,13 +213,13 @@ public Action OnPlayerRunCmd(
         
         float eyeAngles[3];
         GetClientEyeAngles(client, eyeAngles);
+        PrintToServer("%f", eyeAngles[1]);
+        PrintToServer("%f", angles[1]);
 
         eyeAngles[1] += g_mouseX;
         eyeAngles[0] += g_mouseY;
         
-        SetEntPropVector(client, Prop_Send, "m_angRotation", eyeAngles);
-
-        PrintToServer("%f", angles[1]);
+        TeleportEntity(client, NULL_VECTOR, eyeAngles, NULL_VECTOR);
 
         return Plugin_Changed;
     }
