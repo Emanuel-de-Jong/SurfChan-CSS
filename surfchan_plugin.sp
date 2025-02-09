@@ -3,43 +3,6 @@
 #include <sdktools>
 #include <socket>
 
-enum MESSAGE_TYPE {
-    TEST = 1,
-    START = 2,
-    TICK = 3,
-    MOVE = 4
-};
-
-bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] data, int dataLen) {
-    if (strlen(messageStr) == 0) {
-        LogError("Empty message received");
-        return false;
-    }
-
-    int delimiterPos = StrContains(messageStr, ":");
-    if (delimiterPos == -1) {
-        LogError("Message has invalid format: %s", messageStr);
-        return false;
-    }
-
-    char typeStr[8];
-    char dataStr[256];
-    
-    strcopy(typeStr, sizeof(typeStr), messageStr);
-    typeStr[delimiterPos] = '\0';  // Terminate at delimiter
-    strcopy(dataStr, sizeof(dataStr), messageStr[delimiterPos + 1]);
-
-    int typeInt = StringToInt(typeStr);
-    if (typeInt == 0) {
-        LogError("Invalid message type: %s", typeStr);
-        return false;
-    }
-
-    messageType = view_as<MESSAGE_TYPE>(typeInt);
-    strcopy(data, dataLen, dataStr);
-    return true;
-}
-
 public Plugin myinfo = {
     name = "surfchan_plugin",
     author = "Anon",
@@ -50,6 +13,13 @@ public Plugin myinfo = {
 #define SERVER_HOST "127.0.0.1"
 #define SERVER_PORT 27015
 #define TICKS_PER_MESSAGE 1
+
+enum MESSAGE_TYPE {
+    TEST = 1,
+    START = 2,
+    TICK = 3,
+    MOVE = 4
+};
 
 Socket g_socket;
 bool g_isConnected = false;
@@ -82,8 +52,17 @@ public Action OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast) 
     int client = GetClientOfUserId(event.GetInt("userid"));
     if (IsClientInGame(client) && !IsFakeClient(client))
     {
+        CreateTimer(0.5, MoveToSpectator, client, TIMER_FLAG_NO_MAPCHANGE);
+    }
+    return Plugin_Continue;
+}
+
+public Action MoveToSpectator(Handle timer, any client) {
+    if (IsClientInGame(client))
+    {
         ChangeClientTeam(client, 1);
     }
+    return Plugin_Continue;
 }
 
 public void OnSocketConnected(Socket socket, any data) {
@@ -120,6 +99,36 @@ public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSiz
     } else if (messageType == MOVE) {
         SetMove(messageData);
     }
+}
+
+bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] data, int dataLen) {
+    if (strlen(messageStr) == 0) {
+        LogError("Empty message received");
+        return false;
+    }
+
+    int delimiterPos = StrContains(messageStr, ":");
+    if (delimiterPos == -1) {
+        LogError("Message has invalid format: %s", messageStr);
+        return false;
+    }
+
+    char typeStr[8];
+    char dataStr[256];
+    
+    strcopy(typeStr, sizeof(typeStr), messageStr);
+    typeStr[delimiterPos] = '\0';
+    strcopy(dataStr, sizeof(dataStr), messageStr[delimiterPos + 1]);
+
+    int typeInt = StringToInt(typeStr);
+    if (typeInt == 0) {
+        LogError("Invalid message type: %s", typeStr);
+        return false;
+    }
+
+    messageType = view_as<MESSAGE_TYPE>(typeInt);
+    strcopy(data, dataLen, dataStr);
+    return true;
 }
 
 void SendMessage(MESSAGE_TYPE type, const char[] data) {
@@ -160,8 +169,6 @@ void SetMove(const char[] data) {
     if (StrContains(buttons, "b") != -1) {
         SetTrieValue(g_buttons, "b", 1);
     }
-
-    PrintToServer("Buttons: %s, Mouse: %f, %f", buttons, g_mouseX, g_mouseY);
 }
 
 public void OnGameFrame() {
