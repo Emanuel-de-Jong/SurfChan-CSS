@@ -1,1 +1,2 @@
+surf_kitsune
 surf_beginner

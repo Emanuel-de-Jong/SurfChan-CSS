@@ -49,17 +49,41 @@ public Plugin myinfo = {
 
 #define SERVER_HOST "127.0.0.1"
 #define SERVER_PORT 27015
-#define TICKS_PER_MESSAGE 30
+#define TICKS_PER_MESSAGE 1
 
 Socket g_socket;
 bool g_isConnected = false;
 bool g_isStarted = false;
 int g_tickCount = 0;
-int g_botId = -1;
+new Handle:g_buttons;
+float g_mouseX = 0.0;
+float g_mouseY = 0.0;
 
 public void OnPluginStart() {
+    ResetButtons();
+
+    HookEvent("player_spawn", OnPlayerSpawn);
+
     g_socket = new Socket(SOCKET_TCP, OnSocketError);
     g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_HOST, SERVER_PORT);
+}
+
+void ResetButtons() {
+    if (g_buttons == INVALID_HANDLE)
+    {
+        g_buttons = CreateTrie();
+    }
+    
+    SetTrieValue(g_buttons, "f", 0);
+    SetTrieValue(g_buttons, "b", 0);
+}
+
+public Action OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast) {
+    int client = GetClientOfUserId(event.GetInt("userid"));
+    if (IsClientInGame(client) && !IsFakeClient(client))
+    {
+        ChangeClientTeam(client, 1);
+    }
 }
 
 public void OnSocketConnected(Socket socket, any data) {
@@ -93,9 +117,8 @@ public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSiz
         SendMessage(TEST, "Hello from CSS");
     } else if (messageType == START) {
         g_isStarted = true;
-        SetBot();
     } else if (messageType == MOVE) {
-        Move(messageData);
+        SetMove(messageData);
     }
 }
 
@@ -108,23 +131,37 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
     }
 }
 
-void Move(const char[] data) {
-    if (g_botId == -1) {
-        return;
+void SetMove(const char[] data) {
+    char buttons[256];
+    char mouseStr[256];
+    
+    int delimiterPos = StrContains(data, ",");
+    strcopy(buttons, sizeof(buttons), data);
+    buttons[delimiterPos] = '\0';
+    strcopy(mouseStr, sizeof(mouseStr), data[delimiterPos + 1]);
+
+    char mouseXStr[256];
+    char mouseYStr[256];
+
+    delimiterPos = StrContains(mouseStr, ",");
+    strcopy(mouseXStr, sizeof(mouseXStr), mouseStr);
+    mouseXStr[delimiterPos] = '\0';
+    strcopy(mouseYStr, sizeof(mouseYStr), mouseStr[delimiterPos + 1]);
+
+    g_mouseX = StringToFloat(mouseXStr);
+    g_mouseY = StringToFloat(mouseYStr);
+
+    ResetButtons();
+
+    if (StrContains(buttons, "f") != -1) {
+        SetTrieValue(g_buttons, "f", 1);
     }
 
-    PrintToServer("Moving...");
-
-    if (StrContains(data, "move_forward") != -1) {
-        FakeClientCommand(g_botId, "+forward");
+    if (StrContains(buttons, "b") != -1) {
+        SetTrieValue(g_buttons, "b", 1);
     }
 
-    if (StrContains(data, "rotate_right") != -1) {
-        float angles[3];
-        GetClientEyeAngles(g_botId, angles);
-        angles[1] += 10.0;
-        TeleportEntity(g_botId, NULL_VECTOR, angles, NULL_VECTOR);
-    }
+    PrintToServer("Buttons: %s, Mouse: %f, %f", buttons, g_mouseX, g_mouseY);
 }
 
 public void OnGameFrame() {
@@ -138,16 +175,40 @@ public void OnGameFrame() {
     }
 }
 
-void SetBot() {
-    int botId = CreateFakeClient("bot");
-    
-    SetEntProp(botId, Prop_Data, "m_nButtons", 0);
-    SetEntProp(botId, Prop_Data, "m_afButtonForced", 0);
-    SetEntProp(botId, Prop_Data, "m_afButtonLast", 0);
-    SetEntProp(botId, Prop_Data, "m_bAllowAutoMovement", 0);
+public Action OnPlayerRunCmd(
+    int client,
+    int &buttons,
+    int &impulse,
+    float vel[3],
+    float angles[3],
+    int &weapon,
+    int &subtype,
+    int &cmdnum,
+    int &tickcount,
+    int &seed,
+    int mouse[2]
+)
+{
+    if (g_isStarted && IsClientConnected(client) && IsClientInGame(client) &&
+        IsFakeClient(client) && IsPlayerAlive(client))
+    {
+        buttons = 0;
 
-    ChangeClientTeam(botId, 3);
-    CS_RespawnPlayer(botId);
+        vel[0] = 0.0;
+        vel[1] = 0.0;
+        vel[2] = 0.0;
 
-    g_botId = botId;
+        int isF = 0;
+        GetTrieValue(g_buttons, "f", isF);
+        if (isF == 1) {
+            vel[0] = 100000.0;
+        }
+
+        mouse[0] += g_mouseX;
+        mouse[1] += g_mouseY;
+
+        return Plugin_Changed;
+    }
+
+    return Plugin_Continue;
 }
