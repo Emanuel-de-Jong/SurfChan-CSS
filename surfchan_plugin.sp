@@ -26,8 +26,8 @@ bool g_isConnected = false;
 bool g_isStarted = false;
 int g_tickCount = 0;
 new Handle:g_buttons;
-float g_mouseX = 0.0;
-float g_mouseY = 0.0;
+int g_mouseX = 0;
+int g_mouseY = 0;
 
 public void OnPluginStart() {
     ResetButtons();
@@ -157,8 +157,8 @@ void SetMove(const char[] data) {
     mouseXStr[delimiterPos] = '\0';
     strcopy(mouseYStr, sizeof(mouseYStr), mouseStr[delimiterPos + 1]);
 
-    g_mouseX = StringToFloat(mouseXStr);
-    g_mouseY = StringToFloat(mouseYStr);
+    g_mouseX = StringToInt(mouseXStr);
+    g_mouseY = StringToInt(mouseYStr);
 
     ResetButtons();
 
