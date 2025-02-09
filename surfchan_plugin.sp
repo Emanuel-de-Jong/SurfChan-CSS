@@ -28,6 +28,8 @@ int g_tickCount = 0;
 new Handle:g_buttons;
 float g_mouseX = 0.0;
 float g_mouseY = 0.0;
+float g_currentAngles[3];
+int g_client = 0;
 
 public void OnPluginStart() {
     ResetButtons();
@@ -196,30 +198,38 @@ public Action OnPlayerRunCmd(
     int mouse[2]
 )
 {
-    if (g_isStarted && IsClientConnected(client) && IsClientInGame(client) &&
-        IsFakeClient(client) && IsPlayerAlive(client))
+    if (!IsClientConnected(client) || !IsClientInGame(client) || !IsFakeClient(client) || !IsPlayerAlive(client))
     {
-        buttons = 0;
-
-        vel[0] = 0.0;
-        vel[1] = 0.0;
-        vel[2] = 0.0;
-
-        int isF = 0;
-        GetTrieValue(g_buttons, "f", isF);
-        if (isF == 1) {
-            vel[0] = 100000.0;
-        }
-
-        angles[0] = NormalizeDegree(angles[0] + g_mouseY);
-        angles[1] = NormalizeDegree(angles[1] + g_mouseX);
-        
-        TeleportEntity(client, NULL_VECTOR, angles, NULL_VECTOR);
-
-        return Plugin_Changed;
+        return Plugin_Continue;
     }
 
-    return Plugin_Continue;
+    g_client = client;
+
+    if (!g_isStarted) {
+        return Plugin_Continue;
+    }
+
+    buttons = 0;
+
+    vel[0] = 0.0;
+    vel[1] = 0.0;
+    vel[2] = 0.0;
+
+    int isF = 0;
+    GetTrieValue(g_buttons, "f", isF);
+    if (isF == 1) {
+        vel[0] = 100000.0;
+    }
+
+    g_currentAngles[0] = NormalizeDegree(g_currentAngles[0] + g_mouseY);
+    g_currentAngles[1] = NormalizeDegree(g_currentAngles[1] + g_mouseX);
+
+    angles[0] = g_currentAngles[0];
+    angles[1] = g_currentAngles[1];
+    
+    TeleportEntity(client, NULL_VECTOR, g_currentAngles, NULL_VECTOR);
+
+    return Plugin_Changed;
 }
 
 float NormalizeDegree(float degree) {
