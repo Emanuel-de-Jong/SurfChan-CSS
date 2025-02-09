@@ -210,19 +210,26 @@ public Action OnPlayerRunCmd(
         if (isF == 1) {
             vel[0] = 100000.0;
         }
-        
-        float eyeAngles[3];
-        GetClientEyeAngles(client, eyeAngles);
-        PrintToServer("%f", eyeAngles[1]);
-        PrintToServer("%f", angles[1]);
 
-        eyeAngles[1] += g_mouseX;
-        eyeAngles[0] += g_mouseY;
+        angles[0] = NormalizeDegree(angles[0] + g_mouseY);
+        angles[1] = NormalizeDegree(angles[1] + g_mouseX);
         
-        TeleportEntity(client, NULL_VECTOR, eyeAngles, NULL_VECTOR);
+        TeleportEntity(client, NULL_VECTOR, angles, NULL_VECTOR);
 
         return Plugin_Changed;
     }
 
     return Plugin_Continue;
+}
+
+float NormalizeDegree(float degree) {
+    while (degree > 180.0) {
+        degree -= 360.0;
+    }
+
+    while (degree < -180.0) {
+        degree += 360.0;
+    }
+
+    return degree;
 }
