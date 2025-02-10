@@ -24,6 +24,7 @@ enum MESSAGE_TYPE {
 Socket g_socket;
 bool g_isConnected = false;
 bool g_isStarted = false;
+int g_botCount = 0;
 int g_tickCount = 0;
 new Handle:g_buttons;
 float g_mouseX = 0.0;
@@ -89,7 +90,7 @@ public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSiz
     MESSAGE_TYPE messageType;
     char messageData[256];
 
-    if (!DecodeMessage(messageStr, messageType, messageData, sizeof(messageData))) {
+    if (!DecodeMessage(messageStr, messageType, messageData)) {
         return;
     }
 
@@ -97,39 +98,34 @@ public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSiz
         PrintToServer("Received: %s", messageData);
         SendMessage(TEST, "Hello from CSS");
     } else if (messageType == START) {
-        g_isStarted = true;
+        HandleStart(messageData);
     } else if (messageType == MOVE) {
         SetMove(messageData);
     }
 }
 
-bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] data, int dataLen) {
+bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] messageData) {
     if (strlen(messageStr) == 0) {
         LogError("Empty message received");
         return false;
     }
 
-    int delimiterPos = StrContains(messageStr, ":");
-    if (delimiterPos == -1) {
+    int sepDataCount;
+    char[][] sepData = SepString(messageStr, ':', sepDataCount);
+
+    if (sepDataCount != 2) {
         LogError("Message has invalid format: %s", messageStr);
         return false;
     }
 
-    char typeStr[8];
-    char dataStr[256];
-    
-    strcopy(typeStr, sizeof(typeStr), messageStr);
-    typeStr[delimiterPos] = '\0';
-    strcopy(dataStr, sizeof(dataStr), messageStr[delimiterPos + 1]);
-
-    int typeInt = StringToInt(typeStr);
+    int typeInt = StringToInt(sepData[0]);
     if (typeInt == 0) {
         LogError("Invalid message type: %s", typeStr);
         return false;
     }
 
     messageType = view_as<MESSAGE_TYPE>(typeInt);
-    strcopy(data, dataLen, dataStr);
+    strcopy(messageData, 256, sepData[1]);
     return true;
 }
 
@@ -142,33 +138,39 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
     }
 }
 
+void HandleStart(const char[] data) {
+    int sepDataCount;
+    char[][] sepData = SepString(messageStr, ',', sepDataCount);
+
+    g_botCount = StringToInt(sepData[0]);
+    float startPos[3];
+    startPos[0] = StringToFloat(sepData[1]);
+    startPos[1] = StringToFloat(sepData[2]);
+    startPos[2] = StringToFloat(sepData[3]);
+
+    g_client = CreateFakeClient("bot_1");
+    ChangeClientTeam(g_client, 3);
+    CS_RespawnPlayer(g_client);
+
+    TeleportEntity(g_client, startPos, NULL_VECTOR, NULL_VECTOR);
+
+    g_isStarted = true;
+}
+
 void SetMove(const char[] data) {
-    char buttons[256];
-    char mouseStr[256];
-    
-    int delimiterPos = StrContains(data, ",");
-    strcopy(buttons, sizeof(buttons), data);
-    buttons[delimiterPos] = '\0';
-    strcopy(mouseStr, sizeof(mouseStr), data[delimiterPos + 1]);
+    int sepDataCount;
+    char[][] sepData = SepString(messageStr, ',', sepDataCount);
 
-    char mouseXStr[256];
-    char mouseYStr[256];
-
-    delimiterPos = StrContains(mouseStr, ",");
-    strcopy(mouseXStr, sizeof(mouseXStr), mouseStr);
-    mouseXStr[delimiterPos] = '\0';
-    strcopy(mouseYStr, sizeof(mouseYStr), mouseStr[delimiterPos + 1]);
-
-    g_mouseX = StringToFloat(mouseXStr);
-    g_mouseY = StringToFloat(mouseYStr);
+    g_mouseX = StringToFloat(sepData[1]);
+    g_mouseY = StringToFloat(sepData[2]);
 
     ResetButtons();
 
-    if (StrContains(buttons, "f") != -1) {
+    if (StrContains(sepData[0], "f") != -1) {
         SetTrieValue(g_buttons, "f", 1);
     }
 
-    if (StrContains(buttons, "b") != -1) {
+    if (StrContains(sepData[0], "b") != -1) {
         SetTrieValue(g_buttons, "b", 1);
     }
 }
@@ -242,4 +244,18 @@ float NormalizeDegree(float degree) {
     }
 
     return degree;
+}
+
+char[][] SepString(const char[] str, const char separator, int &sepCount) {
+    sepCount = 1;
+    for (int i = 0; i < strlen(str); i++) {
+        if (str[i] == separator) {
+            sepCount++;
+        }
+    }
+
+    char outputArray[sepCount][256];
+    ExplodeString(str, separator, outputArray, sepCount, sizeof(outputArray[]));
+
+    return outputArray;
 }

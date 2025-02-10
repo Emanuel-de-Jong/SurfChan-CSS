@@ -82,7 +82,8 @@ async def run():
 
         print("Press enter to start training...")
         input()
-        await send_message(MESSAGE_TYPE.START, "")
+        # Coords are start location x,y,z
+        await send_message(MESSAGE_TYPE.START, f"{config.getint('general', 'bot_count')},0,-128,336")
 
         while True:
             # Will show training progress later
