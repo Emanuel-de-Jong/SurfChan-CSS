@@ -13,9 +13,13 @@ public Plugin myinfo = {
 #define SERVER_HOST "127.0.0.1"
 #define SERVER_PORT 27015
 #define TICKS_PER_MESSAGE 1
+#define STRING_SIZE 256
+// Highest amount of seperations a string in SepString can have.
+// And with that also the highest the data in a SurfChan message can have.
+#define MAX_STRING_SEP 10
 
 enum MESSAGE_TYPE {
-    TEST = 1,
+    INIT = 1,
     START = 2,
     TICK = 3,
     MOVE = 4
@@ -84,23 +88,22 @@ public void OnSocketError(Socket socket, const int errorType, const int errorNum
 }
 
 public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSize, any data) {
-    char messageStr[256];
+    char messageStr[STRING_SIZE];
     strcopy(messageStr, sizeof(messageStr), receiveData);
 
     MESSAGE_TYPE messageType;
-    char messageData[256];
+    char messageData[STRING_SIZE];
 
     if (!DecodeMessage(messageStr, messageType, messageData)) {
         return;
     }
 
-    if (messageType == TEST) {
-        PrintToServer("Received: %s", messageData);
-        SendMessage(TEST, "Hello from CSS");
+    if (messageType == INIT) {
+        HandleInit(messageData);
     } else if (messageType == START) {
         HandleStart(messageData);
     } else if (messageType == MOVE) {
-        SetMove(messageData);
+        HandleMove(messageData);
     }
 }
 
@@ -110,8 +113,9 @@ bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] me
         return false;
     }
 
+    char sepData[MAX_STRING_SEP][STRING_SIZE];
     int sepDataCount;
-    char[][] sepData = SepString(messageStr, ':', sepDataCount);
+    SepString(messageStr, ':', sepData, sepDataCount);
 
     if (sepDataCount != 2) {
         LogError("Message has invalid format: %s", messageStr);
@@ -120,17 +124,17 @@ bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] me
 
     int typeInt = StringToInt(sepData[0]);
     if (typeInt == 0) {
-        LogError("Invalid message type: %s", typeStr);
+        LogError("Invalid message type: %s", sepData[0]);
         return false;
     }
 
     messageType = view_as<MESSAGE_TYPE>(typeInt);
-    strcopy(messageData, 256, sepData[1]);
+    strcopy(messageData, STRING_SIZE, sepData[1]);
     return true;
 }
 
 void SendMessage(MESSAGE_TYPE type, const char[] data) {
-    char message[256];
+    char message[STRING_SIZE];
     Format(message, sizeof(message), "%d:%s", type, data);
     
     if (g_isConnected) {
@@ -138,28 +142,43 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
     }
 }
 
+void HandleInit(const char[] data) {
+    PrintToServer("Received: %s", data);
+
+    char ipStr[32];
+    int ip = GetConVarInt(FindConVar("hostip"));
+    Format(ipStr, sizeof(ipStr), "%d.%d.%d.%d",
+        (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255);
+
+    SendMessage(INIT, ipStr);
+}
+
 void HandleStart(const char[] data) {
+    char sepData[MAX_STRING_SEP][STRING_SIZE];
     int sepDataCount;
-    char[][] sepData = SepString(messageStr, ',', sepDataCount);
+    SepString(data, ',', sepData, sepDataCount);
 
     g_botCount = StringToInt(sepData[0]);
-    float startPos[3];
-    startPos[0] = StringToFloat(sepData[1]);
-    startPos[1] = StringToFloat(sepData[2]);
-    startPos[2] = StringToFloat(sepData[3]);
-
-    g_client = CreateFakeClient("bot_1");
-    ChangeClientTeam(g_client, 3);
-    CS_RespawnPlayer(g_client);
-
-    TeleportEntity(g_client, startPos, NULL_VECTOR, NULL_VECTOR);
+    for (int i = 0; i < g_botCount; i++) {
+        float startPos[3];
+        startPos[0] = StringToFloat(sepData[1]);
+        startPos[1] = StringToFloat(sepData[2]);
+        startPos[2] = StringToFloat(sepData[3]);
+    
+        g_client = CreateFakeClient("bot_1");
+        ChangeClientTeam(g_client, 3);
+        CS_RespawnPlayer(g_client);
+    
+        TeleportEntity(g_client, startPos, NULL_VECTOR, NULL_VECTOR);
+    }
 
     g_isStarted = true;
 }
 
-void SetMove(const char[] data) {
+void HandleMove(const char[] data) {
+    char sepData[MAX_STRING_SEP][STRING_SIZE];
     int sepDataCount;
-    char[][] sepData = SepString(messageStr, ',', sepDataCount);
+    SepString(data, ',', sepData, sepDataCount);
 
     g_mouseX = StringToFloat(sepData[1]);
     g_mouseY = StringToFloat(sepData[2]);
@@ -246,7 +265,7 @@ float NormalizeDegree(float degree) {
     return degree;
 }
 
-char[][] SepString(const char[] str, const char separator, int &sepCount) {
+void SepString(const char[] str, const char separator, char sepData[MAX_STRING_SEP][STRING_SIZE], int &sepCount) {
     sepCount = 1;
     for (int i = 0; i < strlen(str); i++) {
         if (str[i] == separator) {
@@ -254,8 +273,8 @@ char[][] SepString(const char[] str, const char separator, int &sepCount) {
         }
     }
 
-    char outputArray[sepCount][256];
-    ExplodeString(str, separator, outputArray, sepCount, sizeof(outputArray[]));
-
-    return outputArray;
+    char seperatorStr[2];
+    seperatorStr[0] = separator;
+    seperatorStr[1] = '\0';
+    ExplodeString(str, seperatorStr, sepData, sepCount, STRING_SIZE);
 }

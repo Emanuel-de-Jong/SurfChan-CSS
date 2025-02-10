@@ -7,7 +7,7 @@ import os
 from enum import Enum
 
 class MESSAGE_TYPE(Enum):
-    TEST = 1
+    INIT = 1
     START = 2
     TICK = 3
     MOVE = 4
@@ -41,8 +41,8 @@ async def decode_message(message_str):
 config = configparser.ConfigParser()
 config.read('config.cfg')
 
-css_process = None
 server_process = None
+css_process = None
 socket = None
 cwriter = None
 message_queue = asyncio.Queue()
@@ -69,7 +69,6 @@ async def run():
     global server_process, socket, cwriter
 
     try:
-        await start_css()
         await start_server()
         await start_socket()
 
@@ -78,12 +77,12 @@ async def run():
 
         asyncio.create_task(process_messages())
 
-        await send_message(MESSAGE_TYPE.TEST, "Hello from python")
+        await send_message(MESSAGE_TYPE.INIT, "Hello from python")
 
         print("Press enter to start training...")
         input()
         # Coords are start location x,y,z
-        await send_message(MESSAGE_TYPE.START, f"{config.getint('general', 'bot_count')},0,-128,336")
+        await send_message(MESSAGE_TYPE.START, f"{config.getint('model', 'bot_count')},0,-128,336")
 
         while True:
             # Will show training progress later
@@ -103,7 +102,7 @@ async def run():
         if server_process and config.getboolean('server', 'close_on_script_close'):
             server_process.kill()
 
-async def start_css():
+async def start_css(server_ip):
     global css_process
 
     server_maps_dir_path = os.path.join("css_server", "server", "cstrike", "maps")
@@ -116,12 +115,12 @@ async def start_css():
             shutil.copy2(src, dst)
 
     css_exe_path = os.path.join(css_path, "hl2.exe")
-    css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", "+connect", config.get('server', 'local_ip')])
+    css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", "+connect", server_ip])
 
 async def start_server():
     global server_process
     server_process = subprocess.Popen(["css_server/server/srcds.exe", "-console", "-game", "cstrike", "-insecure", "-tickrate", "66", \
-        "+maxplayers", "16", "+map", "surf_kitsune"])
+        "+maxplayers", "16", "+map", "surf_beginner"])
 
 async def start_socket():
     global socket
@@ -169,8 +168,9 @@ async def process_messages():
         await handle_message(message)
 
 async def handle_message(message):
-    if message.type == MESSAGE_TYPE.TEST:
-        print(f"Received message: {message}")
+    if message.type == MESSAGE_TYPE.INIT:
+        server_ip = message.data
+        await start_css(server_ip)
     elif message.type == MESSAGE_TYPE.TICK:
         move = await run_ai(message.data)
         await send_message(MESSAGE_TYPE.MOVE, move)
