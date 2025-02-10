@@ -9,12 +9,12 @@ class MapObjects:
         tree_cache_path = f"map_cache/surf_{map_name}_tree.pkl"
         if os.path.exists(tree_cache_path):
             with open(tree_cache_path, "rb") as file:
-                self.obj_tree = pickle.load(file)
+                self.obj_tree, self.solid_indices = pickle.load(file)
         else:
             self._create_obj_tree(map_name)
             if self.obj_tree is not None:
                 with open(tree_cache_path, "wb") as file:
-                    pickle.dump(self.obj_tree, file)
+                    pickle.dump((self.obj_tree, self.solid_indices), file)
 
     def _create_obj_tree(self, map_name):
         vmf = None
@@ -26,26 +26,32 @@ class MapObjects:
             vmf = Vmf(f"css_server/server/cstrike/maps/surf_{map_name}.vmf")
             with open(vmf_cache_path, "wb") as file:
                 pickle.dump(vmf, file)
-        
+
         self.solids = []
         for node in vmf.nodes:
             if node.name in ["world", "entity"]:
                 for subnode in node.nodes:
                     if subnode.name == "solid":
                         self.solids.append(subnode)
-        
-        self.solid_centroids = []
-        for solid in self.solids:
+
+        solid_centroids = []
+        self.solid_indices = []
+
+        for i, solid in enumerate(self.solids):
             centroid = self._calculate_solid_centroid(solid)
             if centroid is not None:
-                self.solid_centroids.append(centroid)
+                solid_centroids.append(centroid)
+                self.solid_indices.append(i)  # Store index instead of object
 
-        self.obj_tree = None
-        if not self.solid_centroids:
+        if not solid_centroids:
+            self.obj_tree = None
             return
-        
-        self.solid_centroids = np.array(self.solid_centroids)
-        self.obj_tree = cKDTree(self.solid_centroids)
+
+        solid_centroids = np.array(solid_centroids)
+        self.solid_indices = np.array(self.solid_indices)  # Convert to NumPy array
+
+        # Store centroids in a KDTree
+        self.obj_tree = cKDTree(solid_centroids)
 
     def _calculate_solid_centroid(self, solid):
         planes = []
@@ -85,13 +91,19 @@ class MapObjects:
         coord = np.array(coord)
 
         if radius:
-            # Find all solids within the radius
             indices = self.obj_tree.query_ball_point(coord, r=radius)
         else:
-            # Find the k-nearest solids
             _, indices = self.obj_tree.query(coord, k=k)
 
-        return [self.solids[i] for i in indices]
+        # Ensure indices are in list format
+        if isinstance(indices, int):  # Case when k=1 returns a single index
+            indices = [indices]
+
+        # Retrieve the corresponding solids using stored indices
+        near_solids = [self.solids[self.solid_indices[i]] for i in indices]
+        
+        return near_solids
+
 
 if __name__ == '__main__':
     map_objects = MapObjects("beginner")
