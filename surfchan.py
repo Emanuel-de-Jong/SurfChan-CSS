@@ -5,6 +5,7 @@ import shutil
 import os
 import yaml
 from enum import Enum
+from MapObjects import MapObjects
 
 class MESSAGE_TYPE(Enum):
     INIT = 1
@@ -39,6 +40,7 @@ async def decode_message(message_str):
     return Message(MESSAGE_TYPE(message_type), message_parts[1])
 
 config = None
+map_objects = None
 server_process = None
 css_process = None
 socket = None
@@ -64,7 +66,7 @@ async def shutdown_handler():
     await asyncio.gather(*tasks, return_exceptions=True)
 
 async def run():
-    global config, server_process, socket, cwriter
+    global config, map_objects, server_process, css_process, socket, cwriter
 
     try:
         with open("config.yml", "r") as config_file:
@@ -73,12 +75,19 @@ async def run():
         await start_server()
         await start_socket()
 
+        map_objects_task = asyncio.to_thread(load_map_objects)
+
         while not cwriter:
             await asyncio.sleep(0.1)
 
         asyncio.create_task(process_messages())
 
         await send_message(MESSAGE_TYPE.INIT, "Hello from python")
+        
+        await map_objects_task
+
+        while not css_process:
+            await asyncio.sleep(0.1)
 
         asyncio.create_task(wait_for_start())
 
@@ -94,19 +103,29 @@ async def run():
             socket.close()
             await socket.wait_closed()
         
-        if css_process and config['css']['close_on_script_close']:
-            css_process.kill()
-        
         if server_process and config['server']['close_on_script_close']:
             server_process.kill()
+        
+        if css_process and config['css']['close_on_script_close']:
+            css_process.kill()
+
+async def load_map_objects():
+    global map_objects
+    print("Loading map objects...")
+    map_objects = MapObjects(config['map'])
 
 async def start_server():
     global server_process
+
+    max_players = str(config['model']['bot_count'] + 1)
+    map = f"surf_{config['map']}"
+    print("Starting server...")
     server_process = subprocess.Popen(["css_server/server/srcds.exe", "-console", "-game", "cstrike", "-insecure", "-tickrate", "66", \
-        "+maxplayers", "16", "+map", "surf_beginner"])
+        "+maxplayers", max_players, "+map", map])
 
 async def start_socket():
     global config, socket
+    print("Starting socket...")
     socket = await asyncio.start_server(handle_client, config['server']['host'], config['server']['port'])
 
 async def handle_client(reader, writer):
@@ -172,19 +191,6 @@ async def send_message(type, data):
     cwriter.write(message_str.encode())
     await cwriter.drain()
 
-async def wait_for_start():
-    global config
-
-    print("Press enter to start training...")
-    # Runs input() in a separate thread
-    await asyncio.to_thread(input)
-
-    # Coords are start location x,y,z
-    bot_count = config['model']['bot_count']
-    map_start_pos = config['maps']['beginner']['start']
-    await send_message(MESSAGE_TYPE.START, \
-        f"{bot_count},{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]},{map_start_pos[3]}")
-
 async def start_css(server_ip):
     global config, css_process
 
@@ -198,7 +204,21 @@ async def start_css(server_ip):
             shutil.copy2(src, dst)
 
     css_exe_path = os.path.join(css_path, "hl2.exe")
+    print("Starting CSS...")
     css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", "+connect", server_ip])
+
+async def wait_for_start():
+    global config
+
+    print("Press enter to start training...")
+    # Runs input() in a separate thread
+    await asyncio.to_thread(input)
+
+    # Coords are start location x,y,z
+    bot_count = config['model']['bot_count']
+    map_start_pos = config['maps'][config['map']]['start']
+    await send_message(MESSAGE_TYPE.START, \
+        f"{bot_count},{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]},{map_start_pos[3]}")
 
 if __name__ == '__main__':
     main()

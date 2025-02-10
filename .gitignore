@@ -1,3 +1,4 @@
+# Server
 css_server/server/*
 
 !css_server/server/cstrike
@@ -35,3 +36,6 @@ css_server/server/cstrike/maps/test_*
 
 css_server/steamcmd/*
 !css_server/steamcmd/.gitkeep
+
+# Python
+__pycache__/

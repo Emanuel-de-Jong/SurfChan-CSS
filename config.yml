@@ -1,3 +1,5 @@
+map: "beginner"
+
 model:
   bot_count: 1
 
@@ -12,4 +14,4 @@ server:
 
 maps:
   beginner:
-    start: [-113.0, 79.0, 448.0, 90.0]
+    start: [-128.0, 0.0, 372.0, 90.0]
