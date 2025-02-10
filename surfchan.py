@@ -46,6 +46,7 @@ css_process = None
 socket = None
 cwriter = None
 message_queue = asyncio.Queue()
+finish_pos = None
 
 def main():
     try:
@@ -69,8 +70,7 @@ async def run():
     global config, map_objects, server_process, css_process, socket, cwriter
 
     try:
-        with open("config.yml", "r") as config_file:
-            config = yaml.safe_load(config_file)
+        await load_config()
 
         await start_server()
         await start_socket()
@@ -108,6 +108,14 @@ async def run():
         
         if css_process and config['css']['close_on_script_close']:
             css_process.kill()
+
+async def load_config():
+    global config, finish_pos
+
+    with open("config.yml", "r") as config_file:
+        config = yaml.safe_load(config_file)
+    
+    finish_pos = config['maps'][config['map']]['finish']
 
 async def load_map_objects():
     global map_objects
@@ -178,6 +186,15 @@ async def handle_message(message):
         await send_message(MESSAGE_TYPE.MOVE, move)
 
 async def run_ai(data):
+    global finish_pos
+    
+    sep_data = data.split(",")
+    position = [float(sep_data[0]), float(sep_data[1]), float(sep_data[2])]
+    angle = float(sep_data[3])
+    velocity = [float(sep_data[4]), float(sep_data[5]), float(sep_data[6])]
+    total_velocity = float(sep_data[7])
+    is_crouch = sep_data[8]
+
     # Will run the AI to get player movement
     return "f,1.0,0.0"
 

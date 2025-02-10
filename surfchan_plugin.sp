@@ -13,7 +13,7 @@ public Plugin myinfo = {
 #define SERVER_HOST "127.0.0.1"
 #define SERVER_PORT 27015
 #define TICKS_PER_MESSAGE 1
-#define STRING_SIZE 256
+#define STRING_SIZE 512
 // Highest amount of seperations a string in SepString can have.
 // And with that also the highest the data in a SurfChan message can have.
 #define MAX_STRING_SEP 10
@@ -202,7 +202,28 @@ public void OnGameFrame() {
 
         if (g_tickCount >= TICKS_PER_MESSAGE) {
             g_tickCount = 0;
-            SendMessage(TICK, "");
+
+            float position[3]
+            GetEntPropVector(g_client, Prop_Send, "m_vecOrigin", position);
+
+            float velocity[3];
+            GetEntPropVector(g_client, Prop_Data, "m_vecVelocity", velocity);
+
+            float totalVelocity = SquareRoot(velocity[0] * velocity[0] +
+                velocity[1] * velocity[1] +
+                velocity[2] * velocity[2]);
+
+            int isCrouch = 0;
+            if (GetEntProp(g_client, Prop_Send, "m_fFlags") & FL_DUCKING) {
+                isCrouch = 1;
+            }
+
+            char messageStr[STRING_SIZE];
+            Format(messageStr, sizeof(messageStr), "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d",
+                position[0], position[1], position[2], g_currentAngles[1],
+                velocity[0], velocity[1], velocity[2], totalVelocity, isCrouch);
+
+            SendMessage(TICK, messageStr);
         }
     }
 }
