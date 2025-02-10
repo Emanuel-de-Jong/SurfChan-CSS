@@ -75,19 +75,19 @@ async def run():
         await start_server()
         await start_socket()
 
-        map_objects_task = asyncio.to_thread(load_map_objects)
-
         while not cwriter:
             await asyncio.sleep(0.1)
+
+        map_objects_task = asyncio.create_task(load_map_objects())
 
         asyncio.create_task(process_messages())
 
         await send_message(MESSAGE_TYPE.INIT, "Hello from python")
-        
-        await map_objects_task
 
         while not css_process:
             await asyncio.sleep(0.1)
+        
+        await map_objects_task
 
         asyncio.create_task(wait_for_start())
 
@@ -112,7 +112,7 @@ async def run():
 async def load_map_objects():
     global map_objects
     print("Loading map objects...")
-    map_objects = MapObjects(config['map'])
+    map_objects = await asyncio.to_thread(MapObjects, config['map'])
 
 async def start_server():
     global server_process
@@ -130,12 +130,12 @@ async def start_socket():
 
 async def handle_client(reader, writer):
     global cwriter, message_queue
-    cwriter = writer
-
-    addr = writer.get_extra_info('peername')
-    print(f"Connected by {addr}")
-
     try:
+        addr = writer.get_extra_info('peername')
+        print(f"Connected by {addr}")
+
+        cwriter = writer
+
         while True:
             data = await reader.read(256)
             if not data:
