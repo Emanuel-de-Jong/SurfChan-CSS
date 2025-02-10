@@ -6,17 +6,6 @@ from scipy.spatial import cKDTree
 
 class MapObjects:
     def __init__(self, map_name):
-        tree_cache_path = f"map_cache/surf_{map_name}_tree.pkl"
-        if os.path.exists(tree_cache_path):
-            with open(tree_cache_path, "rb") as file:
-                self.obj_tree = pickle.load(file)
-        else:
-            self._create_obj_tree(map_name)
-            if self.obj_tree is not None:
-                with open(tree_cache_path, "wb") as file:
-                    pickle.dump(self.obj_tree, file)
-
-    def _create_obj_tree(self, map_name):
         vmf = None
         vmf_cache_path = f"map_cache/surf_{map_name}_vmf.pkl"
         if os.path.exists(vmf_cache_path):
@@ -27,6 +16,7 @@ class MapObjects:
             with open(vmf_cache_path, "wb") as file:
                 pickle.dump(vmf, file)
         
+        # Maybe save solids instead of vmf
         self.solids = []
         for node in vmf.nodes:
             if node.name in ["world", "entity"]:
@@ -34,18 +24,29 @@ class MapObjects:
                     if subnode.name == "solid":
                         self.solids.append(subnode)
         
-        self.solid_centroids = []
+        tree_cache_path = f"map_cache/surf_{map_name}_tree.pkl"
+        if os.path.exists(tree_cache_path):
+            with open(tree_cache_path, "rb") as file:
+                self.obj_tree = pickle.load(file)
+        else:
+            self._create_obj_tree()
+            if self.obj_tree is not None:
+                with open(tree_cache_path, "wb") as file:
+                    pickle.dump(self.obj_tree, file)
+
+    def _create_obj_tree(self):
+        solid_centroids = []
         for solid in self.solids:
             centroid = self._calculate_solid_centroid(solid)
             if centroid is not None:
-                self.solid_centroids.append(centroid)
+                solid_centroids.append(centroid)
 
         self.obj_tree = None
-        if not self.solid_centroids:
+        if not solid_centroids:
             return
         
-        self.solid_centroids = np.array(self.solid_centroids)
-        self.obj_tree = cKDTree(self.solid_centroids)
+        solid_centroids = np.array(solid_centroids)
+        self.obj_tree = cKDTree(solid_centroids)
 
     def _calculate_solid_centroid(self, solid):
         planes = []
