@@ -79,10 +79,7 @@ async def run():
 
         await send_message(MESSAGE_TYPE.INIT, "Hello from python")
 
-        print("Press enter to start training...")
-        input()
-        # Coords are start location x,y,z
-        await send_message(MESSAGE_TYPE.START, f"{config.getint('model', 'bot_count')},0,-128,336")
+        asyncio.create_task(wait_for_start())
 
         while True:
             # Will show training progress later
@@ -101,21 +98,6 @@ async def run():
         
         if server_process and config.getboolean('server', 'close_on_script_close'):
             server_process.kill()
-
-async def start_css(server_ip):
-    global css_process
-
-    server_maps_dir_path = os.path.join("css_server", "server", "cstrike", "maps")
-    css_path = config.get('css', 'path')
-    css_maps_dir_path = os.path.join(css_path, "cstrike", "maps")
-    for map_path in os.listdir(server_maps_dir_path):
-        src = os.path.join(server_maps_dir_path, map_path)
-        dst = os.path.join(css_maps_dir_path, map_path)
-        if not os.path.exists(dst):
-            shutil.copy2(src, dst)
-
-    css_exe_path = os.path.join(css_path, "hl2.exe")
-    css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", "+connect", server_ip])
 
 async def start_server():
     global server_process
@@ -188,6 +170,29 @@ async def send_message(type, data):
     message_str = str(message)
     cwriter.write(message_str.encode())
     await cwriter.drain()
+
+async def wait_for_start():
+    print("Press enter to start training...")
+    # Runs input() in a separate thread
+    await asyncio.to_thread(input)
+
+    # Coords are start location x,y,z
+    await send_message(MESSAGE_TYPE.START, f"{config.getint('model', 'bot_count')},0,-128,336")
+
+async def start_css(server_ip):
+    global css_process
+
+    server_maps_dir_path = os.path.join("css_server", "server", "cstrike", "maps")
+    css_path = config.get('css', 'path')
+    css_maps_dir_path = os.path.join(css_path, "cstrike", "maps")
+    for map_path in os.listdir(server_maps_dir_path):
+        src = os.path.join(server_maps_dir_path, map_path)
+        dst = os.path.join(css_maps_dir_path, map_path)
+        if not os.path.exists(dst):
+            shutil.copy2(src, dst)
+
+    css_exe_path = os.path.join(css_path, "hl2.exe")
+    css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", "+connect", server_ip])
 
 if __name__ == '__main__':
     main()

@@ -165,7 +165,7 @@ void HandleStart(const char[] data) {
         startPos[1] = StringToFloat(sepData[2]);
         startPos[2] = StringToFloat(sepData[3]);
     
-        g_client = CreateFakeClient("bot_1");
+        g_client = CreateFakeClient("bot");
         ChangeClientTeam(g_client, 3);
         CS_RespawnPlayer(g_client);
     
