@@ -48,13 +48,22 @@ class MapObjects:
         self.obj_tree = cKDTree(self.solid_centroids)
 
     def _calculate_solid_centroid(self, solid):
-        points = []
+        planes = []
         for node in solid.nodes:
             if node.name == "side":
-                for subnode in node.nodes:
-                    if subnode.name == "plane":
-                        # Extract the 3D plane points
-                        points.extend(self._parse_plane(subnode.value))
+                for property in node.properties:
+                    if property[0] == "plane":
+                        planes.append(property)
+        
+        points = []
+        for plane in planes:
+            for i in range(1, len(plane)):
+                for point in plane[i]:
+                    converted_point = []
+                    for num in point:
+                        converted_point.append(float(num))
+                
+                    points.append(converted_point)
 
         if len(points) < 3:
             return None
@@ -68,13 +77,6 @@ class MapObjects:
         # Compute the centroid (midpoint of bounding box)
         centroid = (min_corner + max_corner) / 2.0
         return centroid
-
-    def _parse_plane(self, plane_str):
-        coords = plane_str.replace("(", "").replace(")", "").split()
-        points = []
-        for i in range(0, len(coords), 3):
-            points.append([float(coords[i]), float(coords[i+1]), float(coords[i+2])])
-        return points
 
     def get_near_objects(self, coord, k=5, radius=None):
         if self.obj_tree is None:
