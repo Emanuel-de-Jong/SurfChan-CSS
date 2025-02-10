@@ -182,7 +182,8 @@ async def wait_for_start():
     # Coords are start location x,y,z
     bot_count = config['model']['bot_count']
     map_start_pos = config['maps']['beginner']['start']
-    await send_message(MESSAGE_TYPE.START, f"{bot_count},{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]}")
+    await send_message(MESSAGE_TYPE.START, \
+        f"{bot_count},{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]},{map_start_pos[3]}")
 
 async def start_css(server_ip):
     global config, css_process

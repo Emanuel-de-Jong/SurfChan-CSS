@@ -164,12 +164,13 @@ void HandleStart(const char[] data) {
         startPos[0] = StringToFloat(sepData[1]);
         startPos[1] = StringToFloat(sepData[2]);
         startPos[2] = StringToFloat(sepData[3]);
+        g_currentAngles[1] = StringToFloat(sepData[4]);
     
         g_client = CreateFakeClient("bot");
         ChangeClientTeam(g_client, 3);
         CS_RespawnPlayer(g_client);
     
-        TeleportEntity(g_client, startPos, NULL_VECTOR, NULL_VECTOR);
+        TeleportEntity(g_client, startPos, g_currentAngles, NULL_VECTOR);
     }
 
     g_isStarted = true;

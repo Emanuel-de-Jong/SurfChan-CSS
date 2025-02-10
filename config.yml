@@ -12,4 +12,4 @@ server:
 
 maps:
   beginner:
-    start: [0, 336, -128]
+    start: [-113.0, 79.0, 448.0, 90.0]
