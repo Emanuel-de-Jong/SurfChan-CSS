@@ -38,5 +38,9 @@ css_server/server/cstrike/maps/*
 css_server/steamcmd/*
 !css_server/steamcmd/.gitkeep
 
+# Map cache
+map_cache/*
+!map_cache/.gitkeep
+
 # Python
 __pycache__/
