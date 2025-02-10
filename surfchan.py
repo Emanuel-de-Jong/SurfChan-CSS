@@ -1,9 +1,9 @@
-import configparser
 import subprocess
 import traceback
 import asyncio
 import shutil
 import os
+import yaml
 from enum import Enum
 
 class MESSAGE_TYPE(Enum):
@@ -38,9 +38,7 @@ async def decode_message(message_str):
     
     return Message(MESSAGE_TYPE(message_type), message_parts[1])
 
-config = configparser.ConfigParser()
-config.read('config.cfg')
-
+config = None
 server_process = None
 css_process = None
 socket = None
@@ -66,9 +64,12 @@ async def shutdown_handler():
     await asyncio.gather(*tasks, return_exceptions=True)
 
 async def run():
-    global server_process, socket, cwriter
+    global config, server_process, socket, cwriter
 
     try:
+        with open("config.yml", "r") as config_file:
+            config = yaml.safe_load(config_file)
+
         await start_server()
         await start_socket()
 
@@ -93,10 +94,10 @@ async def run():
             socket.close()
             await socket.wait_closed()
         
-        if css_process and config.getboolean('css', 'close_on_script_close'):
+        if css_process and config['css']['close_on_script_close']:
             css_process.kill()
         
-        if server_process and config.getboolean('server', 'close_on_script_close'):
+        if server_process and config['server']['close_on_script_close']:
             server_process.kill()
 
 async def start_server():
@@ -105,8 +106,8 @@ async def start_server():
         "+maxplayers", "16", "+map", "surf_beginner"])
 
 async def start_socket():
-    global socket
-    socket = await asyncio.start_server(handle_client, config.get('server', 'host'), config.getint('server', 'port'))
+    global config, socket
+    socket = await asyncio.start_server(handle_client, config['server']['host'], config['server']['port'])
 
 async def handle_client(reader, writer):
     global cwriter, message_queue
@@ -172,18 +173,22 @@ async def send_message(type, data):
     await cwriter.drain()
 
 async def wait_for_start():
+    global config
+
     print("Press enter to start training...")
     # Runs input() in a separate thread
     await asyncio.to_thread(input)
 
     # Coords are start location x,y,z
-    await send_message(MESSAGE_TYPE.START, f"{config.getint('model', 'bot_count')},0,-128,336")
+    bot_count = config['model']['bot_count']
+    map_start_pos = config['maps']['beginner']['start']
+    await send_message(MESSAGE_TYPE.START, f"{bot_count},{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]}")
 
 async def start_css(server_ip):
-    global css_process
+    global config, css_process
 
     server_maps_dir_path = os.path.join("css_server", "server", "cstrike", "maps")
-    css_path = config.get('css', 'path')
+    css_path = config['css']['path']
     css_maps_dir_path = os.path.join(css_path, "cstrike", "maps")
     for map_path in os.listdir(server_maps_dir_path):
         src = os.path.join(server_maps_dir_path, map_path)

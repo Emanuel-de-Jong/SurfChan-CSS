@@ -5,6 +5,7 @@
 - [BSPSource](https://github.com/ata4/bspsrc/releases) to decompile maps and find spawn, trace point and finish locations in Hammer.
 
 ## Setup
+- Install Python packages `pip install -r requirements.txt`
 - Setup server `css_server/create.md`
 
 ## Run
