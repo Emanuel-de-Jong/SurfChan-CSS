@@ -158,7 +158,7 @@ void HandleInit(const char[] data) {
 
 public Action FindBots(Handle timer, float startAngle) {
     int index = 0;
-    for (int client = 1; client <= g_botCount; client++) {
+    for (int client = 1; client <= MaxClients; client++) {
         if (IsClientConnected(client) && IsFakeClient(client)) {
             g_botIds[index] = client;
 
@@ -245,7 +245,7 @@ public void OnGameFrame() {
 
             char botStr[STRING_SIZE];
             Format(botStr, sizeof(botStr), "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d",
-                position[0], position[1], position[2], g_botIds[i].currentAngles[1],
+                position[0], position[1], position[2], g_bots[i].currentAngles[1],
                 velocity[0], velocity[1], velocity[2], totalVelocity, isCrouch);
             
             if (i == 0) {
