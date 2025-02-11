@@ -4,6 +4,9 @@ import numpy as np
 from valvevmf import Vmf
 from scipy.spatial import cKDTree
 
+SHOULD_CACHE_VMF = True
+SHOULD_CACHE_TREE = False
+
 class MapObjects:
     def __init__(self, map_name):
         vmf = None
@@ -13,34 +16,35 @@ class MapObjects:
                 vmf = pickle.load(file)
         else:
             vmf = Vmf(f"css_server/server/cstrike/maps/surf_{map_name}.vmf")
-            with open(vmf_cache_path, "wb") as file:
-                pickle.dump(vmf, file)
+            if SHOULD_CACHE_VMF and vmf is not None:
+                with open(vmf_cache_path, "wb") as file:
+                    pickle.dump(vmf, file)
         
         # Maybe save solids instead of vmf
         self.solids = []
+        solid_centroids = []
         for node in vmf.nodes:
             if node.name in ["world", "entity"]:
                 for subnode in node.nodes:
                     if subnode.name == "solid":
+                        centroid = self._calculate_solid_centroid(subnode)
+                        if centroid is None:
+                            continue
+
                         self.solids.append(subnode)
+                        solid_centroids.append(centroid)
         
         tree_cache_path = f"map_cache/surf_{map_name}_tree.pkl"
         if os.path.exists(tree_cache_path):
             with open(tree_cache_path, "rb") as file:
                 self.obj_tree = pickle.load(file)
         else:
-            self._create_obj_tree()
-            if self.obj_tree is not None:
+            self._create_obj_tree(solid_centroids)
+            if SHOULD_CACHE_TREE and self.obj_tree is not None:
                 with open(tree_cache_path, "wb") as file:
                     pickle.dump(self.obj_tree, file)
 
-    def _create_obj_tree(self):
-        solid_centroids = []
-        for solid in self.solids:
-            centroid = self._calculate_solid_centroid(solid)
-            if centroid is not None:
-                solid_centroids.append(centroid)
-
+    def _create_obj_tree(self, solid_centroids):
         self.obj_tree = None
         if not solid_centroids:
             return
@@ -80,9 +84,6 @@ class MapObjects:
         return centroid
 
     def get_near_objects(self, coord, k=5, radius=None):
-        if self.obj_tree is None:
-            return []
-
         coord = np.array(coord)
 
         if radius:

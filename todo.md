@@ -1,5 +1,8 @@
 **TODO**
 - map object inputs
+    - skip objects without collision
+    - skip very small objects
+    - seperate objects and ramps
 - ppo model
 - logic for mouse y
 - refinements
