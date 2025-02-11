@@ -13,11 +13,13 @@ public Plugin myinfo = {
 #define SERVER_HOST "127.0.0.1"
 #define SERVER_PORT 27015
 #define TICKS_PER_MESSAGE 1
+#define MAX_BOTS 100
 #define STRING_SIZE 512
+#define STRING_SIZE_BIG 2250
 // Highest amount of seperations a string in SepString can have.
 // And with that also the highest the data in a SurfChan message can have.
 #define MAX_STRING_SEP 10
-#define MAX_BOTS 100
+#define MAX_STRING_SEP_BIG 100
 
 enum MESSAGE_TYPE {
     INIT = 1,
@@ -81,11 +83,11 @@ public void OnSocketError(Socket socket, const int errorType, const int errorNum
 }
 
 public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSize, any data) {
-    char messageStr[STRING_SIZE];
+    char messageStr[STRING_SIZE_BIG];
     strcopy(messageStr, sizeof(messageStr), receiveData);
 
     MESSAGE_TYPE messageType;
-    char messageData[STRING_SIZE];
+    char messageData[STRING_SIZE_BIG];
 
     if (!DecodeMessage(messageStr, messageType, messageData)) {
         return;
@@ -106,9 +108,9 @@ bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] me
         return false;
     }
 
-    char sepData[MAX_STRING_SEP][STRING_SIZE];
+    char sepData[MAX_STRING_SEP_BIG][STRING_SIZE_BIG];
     int sepDataCount;
-    SepString(messageStr, ':', sepData, sepDataCount);
+    SepBigString(messageStr, ':', sepData, sepDataCount);
 
     if (sepDataCount != 2) {
         LogError("Message has invalid format: %s", messageStr);
@@ -122,7 +124,7 @@ bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] me
     }
 
     messageType = view_as<MESSAGE_TYPE>(typeInt);
-    strcopy(messageData, STRING_SIZE, sepData[1]);
+    strcopy(messageData, STRING_SIZE_BIG, sepData[1]);
     return true;
 }
 
@@ -197,9 +199,9 @@ void ResetButtons(Handle& buttons) {
 }
 
 void HandleMoves(const char[] data) {
-    char botsData[MAX_STRING_SEP][STRING_SIZE];
+    char botsData[MAX_STRING_SEP_BIG][STRING_SIZE_BIG];
     int sepDataCount;
-    SepString(data, ';', botsData, sepDataCount);
+    SepBigString(data, ';', botsData, sepDataCount);
 
     for (int i = 0; i < g_botCount; i++) {
         char botData[MAX_STRING_SEP][STRING_SIZE];
@@ -226,7 +228,7 @@ public void OnGameFrame() {
         if (g_tickCount < TICKS_PER_MESSAGE) return;
         g_tickCount = 0;
 
-        char messageStr[STRING_SIZE];
+        char messageStr[STRING_SIZE_BIG];
         for (int i = 0; i < g_botCount; i++) {
             float position[3];
             GetEntPropVector(g_botIds[i], Prop_Send, "m_vecOrigin", position);
@@ -327,15 +329,26 @@ float NormalizeDegree(float degree) {
 }
 
 void SepString(const char[] str, const char separator, char sepData[MAX_STRING_SEP][STRING_SIZE], int &sepCount) {
+    char separatorStr[2];
+    _PrepSepString(str, separator, separatorStr, sepCount);
+    ExplodeString(str, separatorStr, sepData, sepCount, STRING_SIZE);
+}
+
+void SepBigString(const char[] str, const char separator, char sepData[MAX_STRING_SEP_BIG][STRING_SIZE_BIG], int &sepCount) {
+    char separatorStr[2];
+    _PrepSepString(str, separator, separatorStr, sepCount);
+    ExplodeString(str, separatorStr, sepData, sepCount, STRING_SIZE_BIG);
+}
+
+void _PrepSepString(const char[] str, const char separator, char separatorStr[2], int &sepCount) {
+    separatorStr[0] = separator;
+    separatorStr[1] = '\0';
+
     sepCount = 1;
-    for (int i = 0; i < strlen(str); i++) {
+    int strLength = strlen(str);
+    for (int i = 0; i < strLength; i++) {
         if (str[i] == separator) {
             sepCount++;
         }
     }
-
-    char seperatorStr[2];
-    seperatorStr[0] = separator;
-    seperatorStr[1] = '\0';
-    ExplodeString(str, seperatorStr, sepData, sepCount, STRING_SIZE);
 }

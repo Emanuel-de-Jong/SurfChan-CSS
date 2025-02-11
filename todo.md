@@ -1,5 +1,4 @@
 **TODO**
-- multiple bots
 - noblock plugin
 - map object inputs
 - ppo model
