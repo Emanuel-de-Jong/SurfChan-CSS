@@ -48,6 +48,8 @@ public void OnPluginStart() {
     HookEvent("player_spawn", OnPlayerSpawn);
 
     g_socket = new Socket(SOCKET_TCP, OnSocketError);
+    g_socket.SetOption(SocketReceiveBuffer, STRING_SIZE_BIG);
+    g_socket.SetOption(SocketSendBuffer, STRING_SIZE_VERY_BIG);
     g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_HOST, SERVER_PORT);
 }
 
@@ -132,22 +134,22 @@ bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] me
 void SendMessage(MESSAGE_TYPE type, const char[] data) {
     const int messageSize = STRING_SIZE + 2;
     char message[messageSize];
-    Format(message, sizeof(message), "%d:%s", type, data);
-    if (g_isConnected) g_socket.Send(message, messageSize);
+    Format(message, messageSize, "%d:%s", type, data);
+    if (g_isConnected) g_socket.Send(message);
 }
 
 void SendMessageBig(MESSAGE_TYPE type, const char[] data) {
     const int messageSize = STRING_SIZE_BIG + 2;
     char message[messageSize];
-    Format(message, sizeof(message), "%d:%s", type, data);
-    if (g_isConnected) g_socket.Send(message, messageSize);
+    Format(message, messageSize, "%d:%s", type, data);
+    if (g_isConnected) g_socket.Send(message);
 }
 
 void SendMessageVeryBig(MESSAGE_TYPE type, const char[] data) {
     const int messageSize = STRING_SIZE_VERY_BIG + 2;
     char message[messageSize];
-    Format(message, sizeof(message), "%d:%s", type, data);
-    if (g_isConnected) g_socket.Send(message, messageSize);
+    Format(message, messageSize, "%d:%s", type, data);
+    if (g_isConnected) g_socket.Send(message);
 }
 
 void HandleInit(const char[] data) {
