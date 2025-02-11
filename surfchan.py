@@ -82,7 +82,8 @@ async def run():
 
         asyncio.create_task(process_messages())
 
-        await send_message(MESSAGE_TYPE.INIT, "Hello from python")
+        bot_count = config['model']['bot_count']
+        await send_message(MESSAGE_TYPE.INIT, str(bot_count))
 
         while not css_process:
             await asyncio.sleep(0.1)
@@ -186,7 +187,7 @@ async def handle_message(message):
         await send_message(MESSAGE_TYPE.MOVE, move)
 
 async def run_ai(data):
-    global finish_pos
+    global map_objects, finish_pos
     
     sep_data = data.split(",")
     position = [float(sep_data[0]), float(sep_data[1]), float(sep_data[2])]
@@ -195,7 +196,8 @@ async def run_ai(data):
     total_velocity = float(sep_data[7])
     is_crouch = sep_data[8]
 
-    # Will run the AI to get player movement
+    # map_objects.get_near_objects(position)
+
     return "f,1.0,0.0"
 
 async def send_message(type, data):
@@ -231,11 +233,9 @@ async def wait_for_start():
     # Runs input() in a separate thread
     await asyncio.to_thread(input)
 
-    # Coords are start location x,y,z
-    bot_count = config['model']['bot_count']
     map_start_pos = config['maps'][config['map']]['start']
     await send_message(MESSAGE_TYPE.START, \
-        f"{bot_count},{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]},{map_start_pos[3]}")
+        f"{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]},{map_start_pos[3]}")
 
 if __name__ == '__main__':
     main()

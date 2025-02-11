@@ -1,7 +1,7 @@
 map: "beginner"
 
 model:
-  bot_count: 1
+  bot_count: 2
 
 css:
   path: C:\Games\steamapps\common\Counter-Strike Source

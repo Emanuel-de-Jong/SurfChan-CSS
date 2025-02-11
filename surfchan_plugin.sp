@@ -29,6 +29,7 @@ Socket g_socket;
 bool g_isConnected = false;
 bool g_isStarted = false;
 int g_botCount = 0;
+int g_botIds[100];
 int g_tickCount = 0;
 new Handle:g_buttons;
 float g_mouseX = 0.0;
@@ -143,7 +144,12 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
 }
 
 void HandleInit(const char[] data) {
-    PrintToServer("Received: %s", data);
+    g_botCount = StringToInt(data);
+    for (int i = 0; i < g_botCount; i++) {
+        ServerCommand("bot_add ct");
+    }
+
+    CreateTimer(0.2, FindBots);
 
     char ipStr[32];
     int ip = GetConVarInt(FindConVar("hostip"));
@@ -153,18 +159,33 @@ void HandleInit(const char[] data) {
     SendMessage(INIT, ipStr);
 }
 
+public Action FindBots(Handle timer) {
+    int index = 0;
+    for (int client = 1; client <= g_botCount; client++) {
+        if (IsClientConnected(client) && IsFakeClient(client)) {
+            g_botIds[index] = client;
+            index++;
+        }
+    }
+
+    for (int i = 0; i < g_botCount; i++) {
+        PrintToServer("%d", g_botIds[i]);
+    }
+
+    return Plugin_Continue;
+}
+
 void HandleStart(const char[] data) {
     char sepData[MAX_STRING_SEP][STRING_SIZE];
     int sepDataCount;
     SepString(data, ',', sepData, sepDataCount);
 
-    g_botCount = StringToInt(sepData[0]);
     for (int i = 0; i < g_botCount; i++) {
         float startPos[3];
-        startPos[0] = StringToFloat(sepData[1]);
-        startPos[1] = StringToFloat(sepData[2]);
-        startPos[2] = StringToFloat(sepData[3]);
-        g_currentAngles[1] = StringToFloat(sepData[4]);
+        startPos[0] = StringToFloat(sepData[0]);
+        startPos[1] = StringToFloat(sepData[1]);
+        startPos[2] = StringToFloat(sepData[2]);
+        g_currentAngles[1] = StringToFloat(sepData[3]);
     
         // This doesn't spawn the model and has many other issues.
         // g_client = CreateFakeClient("bot");
