@@ -15,6 +15,11 @@ css_server/server/cstrike/addons/sourcemod/extensions/*
 
 !css_server/server/cstrike/addons/sourcemod/extensions/socket.ext.dll
 
+!css_server/server/cstrike/addons/sourcemod/plugins
+css_server/server/cstrike/addons/sourcemod/plugins/*
+
+!css_server/server/cstrike/addons/sourcemod/plugins/noblock_v2.smx
+
 !css_server/server/cstrike/addons/sourcemod/scripting
 css_server/server/cstrike/addons/sourcemod/scripting/*
 

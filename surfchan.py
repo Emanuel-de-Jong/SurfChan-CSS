@@ -192,7 +192,7 @@ async def run_ai(data):
 
     moves = []
     bots_data = data.split(";")
-    for bot_data_str in bots_data:
+    for i, bot_data_str in enumerate(bots_data):
         bot_data = bot_data_str.split(",")
     
         position = [float(bot_data[0]), float(bot_data[1]), float(bot_data[2])]
@@ -203,7 +203,10 @@ async def run_ai(data):
 
         # map_objects.get_near_objects(position)
 
-        moves.append("f,1.0,0.0")
+        temp_mouse_x = 1.0
+        if i % 2 == 0:
+            temp_mouse_x = -1.0
+        moves.append(f"f,{temp_mouse_x},0.0")
 
     return ";".join(moves)
 
