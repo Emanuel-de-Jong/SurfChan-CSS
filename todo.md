@@ -1,8 +1,9 @@
 **TODO**
-- simple inputs
-- map object inputs
 - multiple bots
+- noblock plugin
+- map object inputs
 - ppo model
+- logic for mouse y
 - refinements
 - 1 simple stage
 - full linear map with trace points

@@ -11,7 +11,7 @@ class MESSAGE_TYPE(Enum):
     INIT = 1
     START = 2
     TICK = 3
-    MOVE = 4
+    MOVES = 4
 
 class Message:
     def __init__(self, type, data):
@@ -83,7 +83,8 @@ async def run():
         asyncio.create_task(process_messages())
 
         bot_count = config['model']['bot_count']
-        await send_message(MESSAGE_TYPE.INIT, str(bot_count))
+        start_angle = config['maps'][config['map']]['start'][3]
+        await send_message(MESSAGE_TYPE.INIT, f"{bot_count},{start_angle}")
 
         while not css_process:
             await asyncio.sleep(0.1)
@@ -183,22 +184,28 @@ async def handle_message(message):
         server_ip = message.data
         await start_css(server_ip)
     elif message.type == MESSAGE_TYPE.TICK:
-        move = await run_ai(message.data)
-        await send_message(MESSAGE_TYPE.MOVE, move)
+        moves = await run_ai(message.data)
+        await send_message(MESSAGE_TYPE.MOVES, moves)
 
 async def run_ai(data):
     global map_objects, finish_pos
+
+    moves = []
+    bots_data = data.split(";")
+    for bot_data_str in bots_data:
+        bot_data = bot_data_str.split(",")
     
-    sep_data = data.split(",")
-    position = [float(sep_data[0]), float(sep_data[1]), float(sep_data[2])]
-    angle = float(sep_data[3])
-    velocity = [float(sep_data[4]), float(sep_data[5]), float(sep_data[6])]
-    total_velocity = float(sep_data[7])
-    is_crouch = sep_data[8]
+        position = [float(bot_data[0]), float(bot_data[1]), float(bot_data[2])]
+        angle = float(bot_data[3])
+        velocity = [float(bot_data[4]), float(bot_data[5]), float(bot_data[6])]
+        total_velocity = float(bot_data[7])
+        is_crouch = bot_data[8]
 
-    # map_objects.get_near_objects(position)
+        # map_objects.get_near_objects(position)
 
-    return "f,1.0,0.0"
+        moves.append("f,1.0,0.0")
+
+    return ";".join(moves)
 
 async def send_message(type, data):
     global cwriter
@@ -235,7 +242,7 @@ async def wait_for_start():
 
     map_start_pos = config['maps'][config['map']]['start']
     await send_message(MESSAGE_TYPE.START, \
-        f"{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]},{map_start_pos[3]}")
+        f"{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]}")
 
 if __name__ == '__main__':
     main()
