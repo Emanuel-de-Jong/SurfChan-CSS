@@ -102,6 +102,12 @@ class MapObjects:
 
         points = np.array(points)
 
+        min_corner = np.min(points, axis=0)
+        max_corner = np.max(points, axis=0)
+        diagonal_len = np.linalg.norm(max_corner - min_corner)
+        if diagonal_len < 5:
+            return None
+
         # Compute the bounding box
         min_corner = np.min(points, axis=0)
         max_corner = np.max(points, axis=0)
