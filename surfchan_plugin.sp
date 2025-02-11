@@ -16,6 +16,7 @@ public Plugin myinfo = {
 #define MAX_BOTS 100
 #define STRING_SIZE 512
 #define STRING_SIZE_BIG 2250
+#define STRING_SIZE_VERY_BIG 8000
 // Highest amount of seperations a string in SepString can have.
 // And with that also the highest the data in a SurfChan message can have.
 #define MAX_STRING_SEP 10
@@ -110,7 +111,7 @@ bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] me
 
     char sepData[MAX_STRING_SEP_BIG][STRING_SIZE_BIG];
     int sepDataCount;
-    SepBigString(messageStr, ':', sepData, sepDataCount);
+    SepStringBig(messageStr, ':', sepData, sepDataCount);
 
     if (sepDataCount != 2) {
         LogError("Message has invalid format: %s", messageStr);
@@ -129,12 +130,24 @@ bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] me
 }
 
 void SendMessage(MESSAGE_TYPE type, const char[] data) {
-    char message[STRING_SIZE];
+    const int messageSize = STRING_SIZE + 2;
+    char message[messageSize];
     Format(message, sizeof(message), "%d:%s", type, data);
-    
-    if (g_isConnected) {
-        g_socket.Send(message);
-    }
+    if (g_isConnected) g_socket.Send(message, messageSize);
+}
+
+void SendMessageBig(MESSAGE_TYPE type, const char[] data) {
+    const int messageSize = STRING_SIZE_BIG + 2;
+    char message[messageSize];
+    Format(message, sizeof(message), "%d:%s", type, data);
+    if (g_isConnected) g_socket.Send(message, messageSize);
+}
+
+void SendMessageVeryBig(MESSAGE_TYPE type, const char[] data) {
+    const int messageSize = STRING_SIZE_VERY_BIG + 2;
+    char message[messageSize];
+    Format(message, sizeof(message), "%d:%s", type, data);
+    if (g_isConnected) g_socket.Send(message, messageSize);
 }
 
 void HandleInit(const char[] data) {
@@ -144,11 +157,15 @@ void HandleInit(const char[] data) {
 
     g_botCount = StringToInt(sepData[0]);
     for (int i = 0; i < g_botCount; i++) {
-        ServerCommand("bot_add ct");
+        if (i % 2 == 0) {
+            ServerCommand("bot_add t");
+        } else {
+            ServerCommand("bot_add ct");
+        }
     }
 
     float startAngle = StringToFloat(sepData[1]);
-    CreateTimer(0.2, FindBots, startAngle, TIMER_FLAG_NO_MAPCHANGE);
+    CreateTimer(0.5, FindBots, startAngle, TIMER_FLAG_NO_MAPCHANGE);
 
     char ipStr[32];
     int ip = GetConVarInt(FindConVar("hostip"));
@@ -201,7 +218,7 @@ void ResetButtons(Handle& buttons) {
 void HandleMoves(const char[] data) {
     char botsData[MAX_STRING_SEP_BIG][STRING_SIZE_BIG];
     int sepDataCount;
-    SepBigString(data, ';', botsData, sepDataCount);
+    SepStringBig(data, ';', botsData, sepDataCount);
 
     for (int i = 0; i < g_botCount; i++) {
         char botData[MAX_STRING_SEP][STRING_SIZE];
@@ -228,7 +245,7 @@ public void OnGameFrame() {
         if (g_tickCount < TICKS_PER_MESSAGE) return;
         g_tickCount = 0;
 
-        char messageStr[STRING_SIZE_BIG];
+        char messageStr[STRING_SIZE_VERY_BIG];
         for (int i = 0; i < g_botCount; i++) {
             float position[3];
             GetEntPropVector(g_botIds[i], Prop_Send, "m_vecOrigin", position);
@@ -245,7 +262,7 @@ public void OnGameFrame() {
                 isCrouch = 1;
             }
 
-            char botStr[STRING_SIZE];
+            char botStr[STRING_SIZE_VERY_BIG];
             Format(botStr, sizeof(botStr), "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d",
                 position[0], position[1], position[2], g_bots[i].currentAngles[1],
                 velocity[0], velocity[1], velocity[2], totalVelocity, isCrouch);
@@ -258,7 +275,7 @@ public void OnGameFrame() {
             }
         }
 
-        SendMessage(TICK, messageStr);
+        SendMessageVeryBig(TICK, messageStr);
     }
 }
 
@@ -334,7 +351,7 @@ void SepString(const char[] str, const char separator, char sepData[MAX_STRING_S
     ExplodeString(str, separatorStr, sepData, sepCount, STRING_SIZE);
 }
 
-void SepBigString(const char[] str, const char separator, char sepData[MAX_STRING_SEP_BIG][STRING_SIZE_BIG], int &sepCount) {
+void SepStringBig(const char[] str, const char separator, char sepData[MAX_STRING_SEP_BIG][STRING_SIZE_BIG], int &sepCount) {
     char separatorStr[2];
     _PrepSepString(str, separator, separatorStr, sepCount);
     ExplodeString(str, separatorStr, sepData, sepCount, STRING_SIZE_BIG);

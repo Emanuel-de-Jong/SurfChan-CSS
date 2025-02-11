@@ -22,6 +22,8 @@ class Message:
         return f"{self.type.value}:{self.data}"
 
 async def decode_message(message_str):
+    message_str = message_str.strip()
+    
     if not message_str:
         print("Empty message received")
         return None
@@ -152,7 +154,7 @@ async def handle_client(reader, writer):
                 print(f"Connection closed by {addr}")
                 break
 
-            message_str = data.decode().strip()
+            message_str = data.decode()
             message = await decode_message(message_str)
             if not message:
                 continue
