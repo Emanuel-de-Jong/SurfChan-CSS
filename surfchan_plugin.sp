@@ -132,23 +132,8 @@ bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] me
 }
 
 void SendMessage(MESSAGE_TYPE type, const char[] data) {
-    const int messageSize = STRING_SIZE + 2;
-    char message[messageSize];
-    Format(message, messageSize, "%d:%s", type, data);
-    if (g_isConnected) g_socket.Send(message);
-}
-
-void SendMessageBig(MESSAGE_TYPE type, const char[] data) {
-    const int messageSize = STRING_SIZE_BIG + 2;
-    char message[messageSize];
-    Format(message, messageSize, "%d:%s", type, data);
-    if (g_isConnected) g_socket.Send(message);
-}
-
-void SendMessageVeryBig(MESSAGE_TYPE type, const char[] data) {
-    const int messageSize = STRING_SIZE_VERY_BIG + 2;
-    char message[messageSize];
-    Format(message, messageSize, "%d:%s", type, data);
+    char message[STRING_SIZE_VERY_BIG];
+    Format(message, sizeof(message), "%d:%s", type, data);
     if (g_isConnected) g_socket.Send(message);
 }
 
@@ -264,7 +249,7 @@ public void OnGameFrame() {
                 isCrouch = 1;
             }
 
-            char botStr[STRING_SIZE_VERY_BIG];
+            char botStr[STRING_SIZE];
             Format(botStr, sizeof(botStr), "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d",
                 position[0], position[1], position[2], g_bots[i].currentAngles[1],
                 velocity[0], velocity[1], velocity[2], totalVelocity, isCrouch);
@@ -277,7 +262,7 @@ public void OnGameFrame() {
             }
         }
 
-        SendMessageVeryBig(TICK, messageStr);
+        SendMessage(TICK, messageStr);
     }
 }
 
