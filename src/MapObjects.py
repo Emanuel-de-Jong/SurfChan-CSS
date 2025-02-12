@@ -144,23 +144,27 @@ class MapObjects:
 
     def _is_ramp(self, obj):
         points = self._get_obj_points(obj)
-        
-        min_corner = np.min(points, axis=0)
-        max_corner = np.max(points, axis=0)
-        height = max_corner[2] - min_corner[2]
-        if (height < MIN_RAMP_HEIGHT):
-            return False
+        for i in range(len(points)):
+            for j in range(i + 1, len(points)):
+                p1, p2 = points[i], points[j]
 
-        bottom_point = min_corner
-        top_point = max_corner
-        horizontal_distance = np.linalg.norm(top_point[:2] - bottom_point[:2])
-        vertical_distance = top_point[2] - bottom_point[2]
+                z_dist = abs(p2[2] - p1[2])
+                if z_dist < MIN_RAMP_HEIGHT:
+                    continue
 
-        angle = np.degrees(np.arctan2(vertical_distance, horizontal_distance))
-        if angle < MIN_RAMP_ANGLE or angle > MAX_RAMP_ANGLE:
-            return False
-        
-        return True
+                x_dist = abs(p2[0] - p1[0])
+                y_dist = abs(p2[1] - p1[1])
+                if z_dist <= x_dist or z_dist <= y_dist:
+                    continue
+
+                horizontal_distance = np.sqrt(x_dist**2 + y_dist**2)
+                angle = np.degrees(np.arctan2(z_dist, horizontal_distance))
+                if angle < MIN_RAMP_ANGLE or angle > MAX_RAMP_ANGLE:
+                    continue
+
+                return True
+
+        return False
 
     def get_near(self, coord, k=5, radius=None):
         objs = self.get_near_in_tree(self.obj_tree, coord, k, radius)
