@@ -8,6 +8,7 @@
 ### Setup
 - Install Python packages `pip install -r requirements.txt`
 - Setup server `css_server/create.md`
+- Copy `config_template.yml` and rename it to `config.yml`
 
 ### Run
 - `./run.bat`
