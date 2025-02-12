@@ -79,14 +79,6 @@ class MapObjects:
         
         return False
 
-    def _create_obj_tree(self, solid_centroids):
-        self.obj_tree = None
-        if not solid_centroids:
-            return
-        
-        solid_centroids = np.array(solid_centroids)
-        self.obj_tree = cKDTree(solid_centroids)
-
     def _calculate_solid_centroid(self, solid):
         planes = []
         for node in solid.nodes:
@@ -118,6 +110,14 @@ class MapObjects:
         # Compute the centroid (midpoint of bounding box)
         centroid = (min_corner + max_corner) / 2.0
         return centroid
+
+    def _create_obj_tree(self, solid_centroids):
+        self.obj_tree = None
+        if not solid_centroids:
+            return
+        
+        solid_centroids = np.array(solid_centroids)
+        self.obj_tree = cKDTree(solid_centroids)
 
     def get_near_objects(self, coord, k=5, radius=None):
         coord = np.array(coord)

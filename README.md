@@ -14,6 +14,9 @@
 - `./run.bat`
 
 ## Development
+### Pre
+- When using VS Code, the [SourcePawn Studio](https://marketplace.visualstudio.com/items?itemName=Sarrus.sourcepawn-vscode) extension is recommended.
+
 ### Socket format
 `TYPE_INT:ITEM_1_VAL,ITEM_1_VAL;ITEM_2_VAL,ITEM_2_VAL`
 
