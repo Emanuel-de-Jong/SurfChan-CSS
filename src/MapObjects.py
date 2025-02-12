@@ -12,7 +12,6 @@ class MapObjects:
     def __init__(self, map_name):
         os.makedirs(MAP_CACHE_DIR, exist_ok=True)
 
-        vmf = None
         vmf_cache_path = f"{MAP_CACHE_DIR}/surf_{map_name}_vmf.pkl"
         if os.path.exists(vmf_cache_path):
             with open(vmf_cache_path, "rb") as file:
@@ -22,10 +21,9 @@ class MapObjects:
             if SHOULD_CACHE_VMF and vmf is not None:
                 with open(vmf_cache_path, "wb") as file:
                     pickle.dump(vmf, file)
-        
-        # Maybe save objects instead of vmf
+
         obj_centroids = self._filter_vmf(vmf)
-        
+
         tree_cache_path = f"{MAP_CACHE_DIR}/surf_{map_name}_tree.pkl"
         if os.path.exists(tree_cache_path):
             with open(tree_cache_path, "rb") as file:
@@ -39,20 +37,30 @@ class MapObjects:
     def _filter_vmf(self, vmf):
         self.objs = []
         obj_centroids = []
+        
         for node in vmf.nodes:
             if node.name in ["world", "entity"]:
                 classname = None
+                solid = False
+                
                 if node.name == "entity":
                     for prop, val in node.properties:
-                        if prop == "classname":
-                            classname = val.lower().strip()
-                            break
-                
-                for subnode in node.nodes:
-                    if subnode.name == "solid":
-                        if not self._has_collision(node.name, classname):
+                        if type(val) != str:
                             continue
 
+                        prop = prop.lower().strip()
+                        val = val.lower().strip()
+
+                        if prop == "classname":
+                            classname = val
+                        elif prop in ["solid", "physbox"]:
+                            solid = True
+
+                for subnode in node.nodes:
+                    if subnode.name == "solid":
+                        if not self._has_collision(node.name, classname, solid):
+                            continue
+                        
                         centroid = self._calc_obj_centroid(subnode)
                         if centroid is None:
                             continue
@@ -62,22 +70,27 @@ class MapObjects:
         
         return obj_centroids
 
-    def _has_collision(self, node_type, classname):
+    def _has_collision(self, node_type, classname, solid_flag):
         if node_type == "world":
+            return True
+
+        if solid_flag:
+            if classname in ["func_clip", "trigger_multiple", "func_illusionary"]:
+                return False
             return True
 
         if not classname:
             return False
-        
-        if classname.startswith("trigger_"):
+
+        if classname.startswith("trigger_") or "illusionary" in classname:
             return False
-        if "illusionary" in classname:
-            return False
-        
-        if classname in ["func_detail", "func_brush", "func_wall", "func_physbox"]:
-            return True
-        
-        return False
+
+        collidable_classes = [
+            "func_detail", "func_brush", "func_wall", "func_physbox",
+            "prop_static", "prop_dynamic", "prop_physics"
+        ]
+
+        return classname in collidable_classes
 
     def _calc_obj_centroid(self, obj):
         planes = []
@@ -96,8 +109,7 @@ class MapObjects:
             return None
 
         points = np.array(points)
-
-        # Compute the bounding box
+        
         min_corner = np.min(points, axis=0)
         max_corner = np.max(points, axis=0)
 
@@ -105,9 +117,7 @@ class MapObjects:
         if diagonal_len < 5:
             return None
 
-        # Compute the centroid (midpoint of bounding box)
-        centroid = (min_corner + max_corner) / 2.0
-        return centroid
+        return (min_corner + max_corner) / 2.0
 
     def _create_obj_tree(self, obj_centroids):
         self.obj_tree = None
@@ -121,10 +131,8 @@ class MapObjects:
         coord = np.array(coord)
 
         if radius is not None:
-            # Find all objectss within the radius
             indices = self.obj_tree.query_ball_point(coord, r=radius)
         else:
-            # Find the k-nearest objects
             _, indices = self.obj_tree.query(coord, k=k)
 
         if isinstance(indices, int):

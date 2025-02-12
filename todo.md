@@ -3,6 +3,7 @@
     - skip objects without collision
     - skip very small objects
     - seperate objects and ramps
+    - Save filtered objects in pickle
 - ppo model
 - logic for mouse y
 - refinements
