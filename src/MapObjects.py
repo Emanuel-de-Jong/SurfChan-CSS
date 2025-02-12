@@ -6,11 +6,14 @@ from scipy.spatial import cKDTree
 
 SHOULD_CACHE_VMF = True
 SHOULD_CACHE_TREE = False
+MAP_CACHE_DIR = "map_cache"
 
 class MapObjects:
     def __init__(self, map_name):
+        os.makedirs(MAP_CACHE_DIR, exist_ok=True)
+
         vmf = None
-        vmf_cache_path = f"map_cache/surf_{map_name}_vmf.pkl"
+        vmf_cache_path = f"{MAP_CACHE_DIR}/surf_{map_name}_vmf.pkl"
         if os.path.exists(vmf_cache_path):
             with open(vmf_cache_path, "rb") as file:
                 vmf = pickle.load(file)
@@ -23,7 +26,7 @@ class MapObjects:
         # Maybe save solids instead of vmf
         solid_centroids = self._filter_vmf(vmf)
         
-        tree_cache_path = f"map_cache/surf_{map_name}_tree.pkl"
+        tree_cache_path = f"{MAP_CACHE_DIR}/surf_{map_name}_tree.pkl"
         if os.path.exists(tree_cache_path):
             with open(tree_cache_path, "rb") as file:
                 self.obj_tree = pickle.load(file)
