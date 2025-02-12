@@ -23,22 +23,22 @@ class MapObjects:
                 with open(vmf_cache_path, "wb") as file:
                     pickle.dump(vmf, file)
         
-        # Maybe save solids instead of vmf
-        solid_centroids = self._filter_vmf(vmf)
+        # Maybe save objects instead of vmf
+        obj_centroids = self._filter_vmf(vmf)
         
         tree_cache_path = f"{MAP_CACHE_DIR}/surf_{map_name}_tree.pkl"
         if os.path.exists(tree_cache_path):
             with open(tree_cache_path, "rb") as file:
                 self.obj_tree = pickle.load(file)
         else:
-            self._create_obj_tree(solid_centroids)
+            self._create_obj_tree(obj_centroids)
             if SHOULD_CACHE_TREE and self.obj_tree is not None:
                 with open(tree_cache_path, "wb") as file:
                     pickle.dump(self.obj_tree, file)
     
     def _filter_vmf(self, vmf):
-        self.solids = []
-        solid_centroids = []
+        self.objs = []
+        obj_centroids = []
         for node in vmf.nodes:
             if node.name in ["world", "entity"]:
                 classname = None
@@ -53,14 +53,14 @@ class MapObjects:
                         if not self._has_collision(node.name, classname):
                             continue
 
-                        centroid = self._calculate_solid_centroid(subnode)
+                        centroid = self._calc_obj_centroid(subnode)
                         if centroid is None:
                             continue
                         
-                        self.solids.append(subnode)
-                        solid_centroids.append(centroid)
+                        self.objs.append(subnode)
+                        obj_centroids.append(centroid)
         
-        return solid_centroids
+        return obj_centroids
 
     def _has_collision(self, node_type, classname):
         if node_type == "world":
@@ -79,9 +79,9 @@ class MapObjects:
         
         return False
 
-    def _calculate_solid_centroid(self, solid):
+    def _calc_obj_centroid(self, obj):
         planes = []
-        for node in solid.nodes:
+        for node in obj.nodes:
             if node.name == "side":
                 for property in node.properties:
                     if property[0] == "plane":
@@ -109,35 +109,35 @@ class MapObjects:
         centroid = (min_corner + max_corner) / 2.0
         return centroid
 
-    def _create_obj_tree(self, solid_centroids):
+    def _create_obj_tree(self, obj_centroids):
         self.obj_tree = None
-        if not solid_centroids:
+        if not obj_centroids:
             return
         
-        solid_centroids = np.array(solid_centroids)
-        self.obj_tree = cKDTree(solid_centroids)
+        obj_centroids = np.array(obj_centroids)
+        self.obj_tree = cKDTree(obj_centroids)
 
     def get_near_objects(self, coord, k=5, radius=None):
         coord = np.array(coord)
 
         if radius is not None:
-            # Find all solids within the radius
+            # Find all objectss within the radius
             indices = self.obj_tree.query_ball_point(coord, r=radius)
         else:
-            # Find the k-nearest solids
+            # Find the k-nearest objects
             _, indices = self.obj_tree.query(coord, k=k)
 
         if isinstance(indices, int):
             indices = [indices]
 
-        return [self.solids[i] for i in indices]
+        return [self.objs[i] for i in indices]
 
 if __name__ == '__main__':
     map_objects = MapObjects("beginner")
     
     player_pos = (-128.0, 0.0, 372.0)
-    nearby_solids = map_objects.get_near_objects(player_pos, k=5)
+    nearby_objs = map_objects.get_near_objects(player_pos, k=5)
 
-    print(f"Found {len(nearby_solids)} nearby solids:")
-    for solid in nearby_solids:
-        print(solid)
+    print(f"Found {len(nearby_objs)} nearby objects:")
+    for obj in nearby_objs:
+        print(obj)
