@@ -69,7 +69,7 @@ class MapObjects:
         self.ramps = []
         ramp_centroids = []
         for i, obj in enumerate(all_objs):
-            # Check if object is ramp
+            # Check if object is a ramp (48-65 degrees bottom)
             if i % 2 == 0:
                 self.ramps.append(obj)
                 ramp_centroids.append(all_obj_centroids[i])
