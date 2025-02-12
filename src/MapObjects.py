@@ -7,6 +7,10 @@ from scipy.spatial import cKDTree
 SHOULD_CACHE_VMF = True
 SHOULD_CACHE_TREES = False
 MAP_CACHE_DIR = "map_cache"
+PLAYER_HEIGHT = 72
+MIN_RAMP_HEIGHT = PLAYER_HEIGHT / 2
+MIN_RAMP_ANGLE = 48
+MAX_RAMP_ANGLE = 65
 
 class MapObjects:
     def __init__(self, map_name):
