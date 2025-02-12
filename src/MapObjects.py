@@ -166,6 +166,58 @@ class MapObjects:
 
         return False
 
+    def _is_ramp2(self, obj):
+        faces = self._get_obj_faces(obj)
+        for face in faces:
+            normal = self._get_face_normal(face)  # Compute normal vector
+            
+            # Normalize the normal vector
+            normal = normal / np.linalg.norm(normal)
+            
+            # Compute the angle from the ground (Z-axis)
+            angle = np.degrees(np.arccos(abs(normal[2])))  # Angle w.r.t. vertical
+
+            # Compute face height (difference between min & max Z values of face points)
+            min_z = min(p[2] for p in face)
+            max_z = max(p[2] for p in face)
+            face_height = max_z - min_z  # Vertical height of the face
+
+            if MIN_RAMP_ANGLE <= angle <= MAX_RAMP_ANGLE and face_height >= MIN_RAMP_HEIGHT:
+                return True
+        
+        return False
+
+    def _get_obj_faces(self, obj):
+        faces = []
+        for node in obj.nodes:
+            if node.name == "side":
+                face_points = []
+                for property in node.properties:
+                    if property[0] == "plane":
+                        for vertex in property[1]:
+                            face_points.append([float(coord) for coord in vertex])
+                
+                if len(face_points) >= 3:
+                    faces.append(np.array(face_points))
+        
+        return faces
+
+    def _get_face_normal(self, face):
+        if len(face) < 3:
+            # Default to a flat horizontal surface if invalid
+            return np.array([0, 0, 1])
+
+        # Compute two edge vectors
+        edge1 = face[1] - face[0]
+        edge2 = face[2] - face[0]
+
+        # Compute the normal using cross product
+        normal = np.cross(edge1, edge2)
+        
+        # Normalize the normal
+        normal = normal / np.linalg.norm(normal) if np.linalg.norm(normal) != 0 else normal
+        return normal
+
     def get_near(self, coord, k=5, radius=None):
         objs = self.get_near_in_tree(self.obj_tree, coord, k, radius)
         ramps = self.get_near_in_tree(self.ramp_tree, coord, k, radius)
@@ -192,8 +244,8 @@ if __name__ == '__main__':
 
     print(f"Found {len(objs)} nearby objects:")
     for obj in objs:
-        print(obj)
+        print(obj.nodes[0].properties[1][1][0])
     
-    print(f"Found {len(ramps)} nearby ramps:")
+    print(f"\nFound {len(ramps)} nearby ramps:")
     for ramp in ramps:
-        print(ramp)
+        print(ramp.nodes[0].properties[1][1][0])
