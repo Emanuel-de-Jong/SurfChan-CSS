@@ -5,7 +5,7 @@ from valvevmf import Vmf
 from scipy.spatial import cKDTree
 
 SHOULD_CACHE_VMF = True
-SHOULD_CACHE_TREE = False
+SHOULD_CACHE_TREES = False
 MAP_CACHE_DIR = "map_cache"
 
 class MapObjects:
@@ -22,21 +22,22 @@ class MapObjects:
                 with open(vmf_cache_path, "wb") as file:
                     pickle.dump(vmf, file)
 
-        obj_centroids = self._filter_vmf(vmf)
+        obj_centroids, ramp_centroids = self._filter_vmf(vmf)
 
-        tree_cache_path = f"{MAP_CACHE_DIR}/surf_{map_name}_tree.pkl"
-        if os.path.exists(tree_cache_path):
-            with open(tree_cache_path, "rb") as file:
-                self.obj_tree = pickle.load(file)
+        trees_cache_path = f"{MAP_CACHE_DIR}/surf_{map_name}_trees.pkl"
+        if os.path.exists(trees_cache_path):
+            with open(trees_cache_path, "rb") as file:
+                self.obj_tree, self.ramp_tree = pickle.load(file)
         else:
-            self._create_obj_tree(obj_centroids)
-            if SHOULD_CACHE_TREE and self.obj_tree is not None:
-                with open(tree_cache_path, "wb") as file:
-                    pickle.dump(self.obj_tree, file)
+            self.obj_tree = cKDTree(obj_centroids)
+            self.ramp_tree = cKDTree(ramp_centroids)
+            if SHOULD_CACHE_TREES:
+                with open(trees_cache_path, "wb") as file:
+                    pickle.dump((self.obj_tree, self.ramp_tree), file)
     
     def _filter_vmf(self, vmf):
-        self.objs = []
-        obj_centroids = []
+        all_objs = []
+        all_obj_centroids = []
         
         for node in vmf.nodes:
             classname = None
@@ -60,10 +61,23 @@ class MapObjects:
                     if centroid is None:
                         continue
                     
-                    self.objs.append(subnode)
-                    obj_centroids.append(centroid)
+                    all_objs.append(subnode)
+                    all_obj_centroids.append(centroid)
         
-        return obj_centroids
+        self.objs = []
+        obj_centroids = []
+        self.ramps = []
+        ramp_centroids = []
+        for i, obj in enumerate(all_objs):
+            # Check if object is ramp
+            if i % 2 == 0:
+                self.ramps.append(obj)
+                ramp_centroids.append(all_obj_centroids[i])
+            else:
+                self.objs.append(obj)
+                obj_centroids.append(all_obj_centroids[i])
+        
+        return np.array(obj_centroids), np.array(ramp_centroids)
 
     def _extract_properties(self, properties):
         if isinstance(properties, dict):
@@ -126,21 +140,18 @@ class MapObjects:
 
         return (min_corner + max_corner) / 2.0
 
-    def _create_obj_tree(self, obj_centroids):
-        self.obj_tree = None
-        if not obj_centroids:
-            return
-        
-        obj_centroids = np.array(obj_centroids)
-        self.obj_tree = cKDTree(obj_centroids)
+    def get_near(self, coord, k=5, radius=None):
+        objs = self.get_near_in_tree(self.obj_tree, coord, k, radius)
+        ramps = self.get_near_in_tree(self.ramp_tree, coord, k, radius)
+        return objs, ramps
 
-    def get_near_objects(self, coord, k=5, radius=None):
+    def get_near_in_tree(self, tree, coord, k=5, radius=None):
         coord = np.array(coord)
 
         if radius is not None:
-            indices = self.obj_tree.query_ball_point(coord, r=radius)
+            indices = tree.query_ball_point(coord, r=radius)
         else:
-            _, indices = self.obj_tree.query(coord, k=k)
+            _, indices = tree.query(coord, k=k)
 
         if isinstance(indices, int):
             indices = [indices]
@@ -151,8 +162,12 @@ if __name__ == '__main__':
     map_objects = MapObjects("beginner")
     
     player_pos = (-128.0, 0.0, 372.0)
-    nearby_objs = map_objects.get_near_objects(player_pos, k=5)
+    objs, ramps = map_objects.get_near(player_pos, k=5)
 
-    print(f"Found {len(nearby_objs)} nearby objects:")
-    for obj in nearby_objs:
+    print(f"Found {len(objs)} nearby objects:")
+    for obj in objs:
         print(obj)
+    
+    print(f"Found {len(ramps)} nearby ramps:")
+    for ramp in ramps:
+        print(ramp)
