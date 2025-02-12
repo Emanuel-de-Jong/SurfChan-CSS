@@ -4,7 +4,7 @@ model:
   bot_count: 2
 
 css:
-  path: C:\Games\steamapps\common\Counter-Strike Source
+  path: C:\[PATH_TO_STEAM]\steamapps\common\Counter-Strike Source
   close_on_script_close: True
 
 server:

@@ -1,7 +1,7 @@
 - Download
-    - steamcmd
-    - MetaMod
-    - SourceMod
+    - [steamcmd](https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip)
+    - [MetaMod](https://www.sourcemm.net/downloads.php?branch=stable)
+    - [SourceMod](https://www.sourcemod.net/downloads.php?branch=stable)
 - Extract steamcmd to `steamcmd/`
 - Run `steamcmd/steamcmd.exe`
     - `force_install_dir [PATH_TO_REPO]\css_server\server`
