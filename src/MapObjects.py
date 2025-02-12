@@ -39,36 +39,43 @@ class MapObjects:
         obj_centroids = []
         
         for node in vmf.nodes:
-            if node.name in ["world", "entity"]:
-                classname = None
-                solid = False
-                
-                if node.name == "entity":
-                    for prop, val in node.properties:
-                        if type(val) != str:
-                            continue
+            classname = None
+            solid = False
 
+            if node.name == "entity":
+                if hasattr(node, "properties"):
+                    for prop, val in self._extract_properties(node.properties):
                         prop = prop.lower().strip()
-                        val = val.lower().strip()
-
                         if prop == "classname":
-                            classname = val
+                            classname = val.lower().strip()
                         elif prop in ["solid", "physbox"]:
                             solid = True
 
-                for subnode in node.nodes:
-                    if subnode.name == "solid":
-                        if not self._has_collision(node.name, classname, solid):
-                            continue
-                        
-                        centroid = self._calc_obj_centroid(subnode)
-                        if centroid is None:
-                            continue
-                        
-                        self.objs.append(subnode)
-                        obj_centroids.append(centroid)
+            for subnode in node.nodes:
+                if subnode.name == "solid":
+                    if not self._has_collision(node.name, classname, solid):
+                        continue
+                    
+                    centroid = self._calc_obj_centroid(subnode)
+                    if centroid is None:
+                        continue
+                    
+                    self.objs.append(subnode)
+                    obj_centroids.append(centroid)
         
         return obj_centroids
+
+    def _extract_properties(self, properties):
+        if isinstance(properties, dict):
+            for key, value in properties.items():
+                if isinstance(value, dict):
+                    yield from self._extract_properties(value)
+                else:
+                    yield key, value
+        elif isinstance(properties, list):
+            for item in properties:
+                if isinstance(item, tuple) and len(item) == 2:
+                    yield item
 
     def _has_collision(self, node_type, classname, solid_flag):
         if node_type == "world":
