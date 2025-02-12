@@ -73,8 +73,17 @@ class MapObjects:
         self.ramps = []
         ramp_centroids = []
         for i, obj in enumerate(all_objs):
-            # Check if object is a ramp (48-65 degrees bottom)
-            if i % 2 == 0:
+            min_corner, max_corner = self._get_obj_bounds(obj)
+            height = max_corner[2] - min_corner[2]
+
+            bottom_point = min_corner
+            top_point = max_corner
+            horizontal_distance = np.linalg.norm(top_point[:2] - bottom_point[:2])
+            vertical_distance = top_point[2] - bottom_point[2]
+
+            angle = np.degrees(np.arctan2(vertical_distance, horizontal_distance))
+
+            if height >= MIN_RAMP_HEIGHT and MIN_RAMP_ANGLE <= angle <= MAX_RAMP_ANGLE:
                 self.ramps.append(obj)
                 ramp_centroids.append(all_obj_centroids[i])
             else:
@@ -143,6 +152,21 @@ class MapObjects:
             return None
 
         return (min_corner + max_corner) / 2.0
+
+    def _get_obj_bounds(self, obj):
+        points = []
+        for node in obj.nodes:
+            if node.name == "side":
+                for property in node.properties:
+                    if property[0] == "plane":
+                        for vertex in property[1]:
+                            points.append([float(coord) for coord in vertex])
+
+        if len(points) < 3:
+            return None, None
+
+        points = np.array(points)
+        return np.min(points, axis=0), np.max(points, axis=0)
 
     def get_near(self, coord, k=5, radius=None):
         objs = self.get_near_in_tree(self.obj_tree, coord, k, radius)
