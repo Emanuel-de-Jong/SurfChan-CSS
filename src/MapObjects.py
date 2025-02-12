@@ -7,6 +7,7 @@ from scipy.spatial import cKDTree
 SHOULD_CACHE_VMF = True
 SHOULD_CACHE_TREES = False
 MAP_CACHE_DIR = "map_cache"
+PLAYER_ANGLE_OFFSET = 500
 PLAYER_HEIGHT = 72
 MIN_RAMP_HEIGHT = PLAYER_HEIGHT / 2
 MIN_RAMP_ANGLE = 48
@@ -218,12 +219,21 @@ class MapObjects:
         normal = normal / np.linalg.norm(normal) if np.linalg.norm(normal) != 0 else normal
         return normal
 
-    def get_near(self, coord, k=5, radius=None):
-        objs = self.get_near_in_tree(self.obj_tree, coord, k, radius)
-        ramps = self.get_near_in_tree(self.ramp_tree, coord, k, radius)
+    def get_near(self, coord, angle, k=5, radius=None):
+        objs = self.get_near_in_tree(self.obj_tree, coord, angle, k, radius)
+        ramps = self.get_near_in_tree(self.ramp_tree, coord, angle, k, radius)
         return objs, ramps
 
-    def get_near_in_tree(self, tree, coord, k=5, radius=None):
+    def get_near_in_tree(self, tree, coord, angle, k=5, radius=None):
+        if angle >= 0 and angle < 90:
+            coord[0] += PLAYER_ANGLE_OFFSET
+        elif angle >= 90 and angle < 180:
+            coord[1] += PLAYER_ANGLE_OFFSET
+        elif angle >= -180 and angle < -90:
+            coord[0] -= PLAYER_ANGLE_OFFSET
+        elif angle >= -90 and angle < 0:
+            coord[1] -= PLAYER_ANGLE_OFFSET
+        
         coord = np.array(coord)
 
         if radius is not None:
@@ -239,8 +249,8 @@ class MapObjects:
 if __name__ == '__main__':
     map_objects = MapObjects("beginner")
     
-    player_pos = (-128.0, 0.0, 372.0)
-    objs, ramps = map_objects.get_near(player_pos, k=5)
+    player_pos = [-128.0, 0.0, 372.0]
+    objs, ramps = map_objects.get_near(player_pos, 90.0, k=3)
 
     print(f"Found {len(objs)} nearby objects:")
     for obj in objs:

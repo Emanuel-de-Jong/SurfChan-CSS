@@ -4,6 +4,8 @@
     - skip very small objects
     - seperate objects and ramps
     - Save filtered objects in pickle
+    - player angle offset
+    - visualize objects as test
 - ppo model
 - logic for mouse y
 - refinements
