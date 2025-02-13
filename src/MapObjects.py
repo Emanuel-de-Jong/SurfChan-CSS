@@ -139,10 +139,10 @@ class MapObjects:
         return classname in collidable_classes
 
     def _calc_obj_centroid(self, obj):
-        points = self._get_obj_points(obj)
+        vertices = self._get_obj_vertices(obj)
         
-        min_corner = np.min(points, axis=0)
-        max_corner = np.max(points, axis=0)
+        min_corner = np.min(vertices, axis=0)
+        max_corner = np.max(vertices, axis=0)
 
         diagonal_len = np.linalg.norm(max_corner - min_corner)
         if diagonal_len < 5:
@@ -150,25 +150,25 @@ class MapObjects:
 
         return (min_corner + max_corner) / 2.0
 
-    def _get_obj_points(self, obj):
-        points = []
+    def _get_obj_vertices(self, obj):
+        vertices = []
         for node in obj.nodes:
             if node.name == "side":
                 for property in node.properties:
                     if property[0] == "plane":
                         for vertex in property[1]:
-                            points.append([float(coord) for coord in vertex])
+                            vertices.append([float(coord) for coord in vertex])
 
-        if len(points) < 3:
+        if len(vertices) < 3:
             return None, None
 
-        return np.array(points)
+        return np.array(vertices)
 
     def _is_ramp(self, obj):
-        points = self._get_obj_points(obj)
-        for i in range(len(points)):
-            for j in range(i + 1, len(points)):
-                p1, p2 = points[i], points[j]
+        vertices = self._get_obj_vertices(obj)
+        for i in range(len(vertices)):
+            for j in range(i + 1, len(vertices)):
+                p1, p2 = vertices[i], vertices[j]
 
                 z_dist = abs(p2[2] - p1[2])
                 if z_dist < MIN_RAMP_HEIGHT:
@@ -199,7 +199,7 @@ class MapObjects:
             # Compute the angle from the ground (Z-axis)
             angle = np.degrees(np.arccos(abs(normal[2])))  # Angle w.r.t. vertical
 
-            # Compute face height (difference between min & max Z values of face points)
+            # Compute face height (difference between min & max Z values of face vertices)
             min_z = min(p[2] for p in face)
             max_z = max(p[2] for p in face)
             face_height = max_z - min_z  # Vertical height of the face
@@ -213,14 +213,14 @@ class MapObjects:
         faces = []
         for node in obj.nodes:
             if node.name == "side":
-                face_points = []
+                face_vertices = []
                 for property in node.properties:
                     if property[0] == "plane":
                         for vertex in property[1]:
-                            face_points.append([float(coord) for coord in vertex])
+                            face_vertices.append([float(coord) for coord in vertex])
                 
-                if len(face_points) >= 3:
-                    faces.append(np.array(face_points))
+                if len(face_vertices) >= 3:
+                    faces.append(np.array(face_vertices))
         
         return faces
 
