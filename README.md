@@ -4,6 +4,7 @@
 ### Pre
 - Python
 - [BSPSource](https://github.com/ata4/bspsrc/releases) to decompile maps and find spawn, trace point and finish locations in Hammer.
+- Download maps [here](https://github.com/OuiSURF/Surf_Maps)
 
 ### Setup
 - Install Python packages `pip install -r requirements.txt`
