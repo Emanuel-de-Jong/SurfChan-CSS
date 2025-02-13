@@ -1,6 +1,7 @@
 import os
 import pickle
 import numpy as np
+import pyvista as pv
 from valvevmf import Vmf
 from scipy.spatial import cKDTree
 
@@ -68,6 +69,8 @@ class MapObjects:
                     
                     all_objs.append(subnode)
                     all_obj_centroids.append(centroid)
+        
+        self._show(all_objs)
         
         self.objs = []
         obj_centroids = []
@@ -245,6 +248,30 @@ class MapObjects:
             indices = [indices]
 
         return [self.objs[i] for i in indices]
+
+    def _show(self, objs):
+        vertices = np.array([
+            [0, 0, 0],  # Base corner 1
+            [1, 0, 0],  # Base corner 2
+            [1, 1, 0],  # Base corner 3
+            [0, 1, 0],  # Base corner 4
+            [0.5, 0.5, 1]  # Apex (top of the pyramid)
+        ])
+
+        faces = np.hstack([
+            [3, 0, 1, 4],  # Triangle 1
+            [3, 1, 2, 4],  # Triangle 2
+            [3, 2, 3, 4],  # Triangle 3
+            [3, 3, 0, 4],  # Triangle 4
+            [4, 0, 1, 2, 3]  # Square base
+        ])
+
+        map = pv.PolyData(vertices, faces)
+
+        plotter = pv.Plotter()
+        plotter.add_mesh(map, color="gold", show_edges=True, opacity=0.5)
+        plotter.enable_terrain_style()
+        plotter.show()
 
 if __name__ == '__main__':
     map_objects = MapObjects("beginner")
