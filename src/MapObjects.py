@@ -70,7 +70,25 @@ class MapObjects:
                     all_objs.append(subnode)
                     all_obj_centroids.append(centroid)
         
-        self._show(all_objs)
+        # test = [
+        #     [
+        #         [(-240, 4192, 216), (-240, 4192, -32), (-240, 4672, -32)],
+        #         [(-232, 4672, 216), (-232, 4672, -32), (-232, 4192, -32)],
+        #         [(-232, 4192, 216), (-232, 4192, -32), (-240, 4192, -32)],
+        #         [(-240, 4672, 216), (-240, 4672, -32), (-232, 4672, -32)],
+        #         [(-240, 4672, -32), (-240, 4192, -32), (-232, 4192, -32)],
+        #         [(-240, 4192, 216), (-240, 4672, 216), (-232, 4672, 216)]
+        #     ],
+        #     [
+        #         [(-392, 4192, 216), (-392, 4192, -32), (-392, 4672, -32)],
+        #         [(-384, 4672, 216), (-384, 4672, -32), (-384, 4192, -32)],
+        #         [(-384, 4192, 216), (-384, 4192, -32), (-392, 4192, -32)],
+        #         [(-392, 4672, 216), (-392, 4672, -32), (-384, 4672, -32)],
+        #         [(-392, 4672, -32), (-392, 4192, -32), (-384, 4192, -32)],
+        #         [(-392, 4192, 216), (-392, 4672, 216), (-384, 4672, 216)]
+        #     ]
+        # ]
+        # self._show(objs=test, player_pos=[-260, 4392, 256])
         
         self.objs = []
         obj_centroids = []
@@ -249,29 +267,43 @@ class MapObjects:
 
         return [self.objs[i] for i in indices]
 
-    def _show(self, objs):
-        vertices = np.array([
-            [0, 0, 0],  # Base corner 1
-            [1, 0, 0],  # Base corner 2
-            [1, 1, 0],  # Base corner 3
-            [0, 1, 0],  # Base corner 4
-            [0.5, 0.5, 1]  # Apex (top of the pyramid)
-        ])
-
-        faces = np.hstack([
-            [3, 0, 1, 4],  # Triangle 1
-            [3, 1, 2, 4],  # Triangle 2
-            [3, 2, 3, 4],  # Triangle 3
-            [3, 3, 0, 4],  # Triangle 4
-            [4, 0, 1, 2, 3]  # Square base
-        ])
-
-        map = pv.PolyData(vertices, faces)
-
+    def _show(self, objs=None, ramps=None, player_pos=None):
         plotter = pv.Plotter()
-        plotter.add_mesh(map, color="gold", show_edges=True, opacity=0.5)
+
+        if objs is not None:
+            for obj in objs:
+                mesh = self._obj_to_mesh(obj)
+                plotter.add_mesh(mesh, color="blue", show_edges=True, opacity=0.5)
+
+        if ramps is not None:
+            for ramp in ramps:
+                mesh = self._obj_to_mesh(ramp)
+                plotter.add_mesh(mesh, color="gold", show_edges=True, opacity=0.5)
+        
+        if player_pos is not None:
+            player_mesh = pv.PolyData(np.array([player_pos]))
+            plotter.add_mesh(player_mesh, color="red", point_size=25, render_points_as_spheres=True)
+        
         plotter.enable_terrain_style()
         plotter.show()
+    
+    def _obj_to_mesh(self, obj):
+        vertices = []
+        faces = []
+        vertex_map = {}
+        for face in obj:
+            face_indices = []
+            for vertex in face:
+                if vertex not in vertex_map:
+                    vertex_map[vertex] = len(vertices)
+                    vertices.append(vertex)
+                face_indices.append(vertex_map[vertex])
+            
+            faces.append([len(face)] + face_indices)
+
+        vertices = np.array(vertices)
+        faces = np.hstack(faces).astype(np.int32)
+        return pv.PolyData(vertices, faces)
 
 if __name__ == '__main__':
     map_objects = MapObjects("beginner")
