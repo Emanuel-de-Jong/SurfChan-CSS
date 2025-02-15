@@ -5,7 +5,6 @@ import shutil
 import os
 import yaml
 from enum import Enum
-from MapObjects import MapObjects
 
 class MESSAGE_TYPE(Enum):
     INIT = 1
@@ -21,28 +20,7 @@ class Message:
     def __str__(self):
         return f"{self.type.value}:{self.data}"
 
-async def decode_message(message_str):
-    message_str = message_str.strip()
-    
-    if not message_str:
-        print("Empty message received")
-        return None
-
-    message_parts = message_str.split(":")
-    if len(message_parts) != 2:
-        print(f"Message has invalid format: {message_str}")
-        return None
-    
-    try:
-        message_type = int(message_parts[0])
-    except Exception:
-        print(f"Invalid message type: {message_parts[0]}")
-        return None
-    
-    return Message(MESSAGE_TYPE(message_type), message_parts[1])
-
 config = None
-map_objects = None
 server_process = None
 css_process = None
 socket = None
@@ -69,7 +47,7 @@ async def shutdown_handler():
     await asyncio.gather(*tasks, return_exceptions=True)
 
 async def run():
-    global config, map_objects, server_process, css_process, socket, cwriter
+    global config, server_process, css_process, socket, cwriter
 
     try:
         await load_config()
@@ -80,18 +58,12 @@ async def run():
         while not cwriter:
             await asyncio.sleep(0.1)
 
-        map_objects_task = asyncio.create_task(load_map_objects())
-
         asyncio.create_task(process_messages())
 
-        bot_count = config['model']['bot_count']
-        start_angle = config['maps'][config['map']]['start'][3]
-        await send_message(MESSAGE_TYPE.INIT, f"{bot_count},{start_angle}")
+        await send_message(MESSAGE_TYPE.INIT, "")
 
         while not css_process:
             await asyncio.sleep(0.1)
-        
-        await map_objects_task
 
         asyncio.create_task(wait_for_start())
 
@@ -121,19 +93,13 @@ async def load_config():
     
     finish_pos = config['maps'][config['map']]['finish']
 
-async def load_map_objects():
-    global map_objects
-    print("Loading map objects...")
-    map_objects = await asyncio.to_thread(MapObjects, config['map'])
-
 async def start_server():
     global server_process
 
-    max_players = str(config['model']['bot_count'] + 1)
     map = f"surf_{config['map']}"
     print("Starting server...")
     server_process = subprocess.Popen(["css_server/server/srcds.exe", "-console", "-game", "cstrike", "-insecure", "-tickrate", "66", \
-        "+maxplayers", max_players, "+map", map])
+        "+maxplayers", "2", "+map", map])
 
 async def start_socket():
     global config, socket
@@ -170,6 +136,26 @@ async def handle_client(reader, writer):
         writer.close()
         await writer.wait_closed()
 
+async def decode_message(message_str):
+    message_str = message_str.strip()
+    
+    if not message_str:
+        print("Empty message received")
+        return None
+
+    message_parts = message_str.split(":")
+    if len(message_parts) != 2:
+        print(f"Message has invalid format: {message_str}")
+        return None
+    
+    try:
+        message_type = int(message_parts[0])
+    except Exception:
+        print(f"Invalid message type: {message_parts[0]}")
+        return None
+    
+    return Message(MESSAGE_TYPE(message_type), message_parts[1])
+
 async def process_messages():
     global message_queue
 
@@ -190,27 +176,17 @@ async def handle_message(message):
         await send_message(MESSAGE_TYPE.MOVES, moves)
 
 async def run_ai(data):
-    global map_objects, finish_pos
+    global finish_pos
 
-    moves = []
-    bots_data = data.split(";")
-    for i, bot_data_str in enumerate(bots_data):
-        bot_data = bot_data_str.split(",")
-    
-        position = [float(bot_data[0]), float(bot_data[1]), float(bot_data[2])]
-        angle = float(bot_data[3])
-        velocity = [float(bot_data[4]), float(bot_data[5]), float(bot_data[6])]
-        total_velocity = float(bot_data[7])
-        is_crouch = bot_data[8]
+    sep_data = data.split(",")
 
-        # map_objects.get_near_objects(position)
+    position = [float(sep_data[0]), float(sep_data[1]), float(sep_data[2])]
+    angle = float(sep_data[3])
+    velocity = [float(sep_data[4]), float(sep_data[5]), float(sep_data[6])]
+    total_velocity = float(sep_data[7])
+    is_crouch = sep_data[8]
 
-        temp_mouse_x = 1.0
-        if i % 2 == 0:
-            temp_mouse_x = -1.0
-        moves.append(f"f,{temp_mouse_x},0.0")
-
-    return ";".join(moves)
+    return f"f,1.0,0.0"
 
 async def send_message(type, data):
     global cwriter
@@ -247,7 +223,7 @@ async def wait_for_start():
 
     map_start_pos = config['maps'][config['map']]['start']
     await send_message(MESSAGE_TYPE.START, \
-        f"{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]}")
+        f"{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]},{map_start_pos[3]}")
 
 if __name__ == '__main__':
     main()

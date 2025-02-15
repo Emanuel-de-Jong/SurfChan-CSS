@@ -14,7 +14,6 @@ public Plugin myinfo = {
 #define SERVER_HOST "127.0.0.1"
 #define SERVER_PORT 27015
 #define TICKS_PER_MESSAGE 1
-#define MAX_BOTS 100
 #define STRING_SIZE 512
 #define STRING_SIZE_BIG 2250
 #define STRING_SIZE_VERY_BIG 8000
@@ -30,22 +29,20 @@ enum MESSAGE_TYPE {
     MOVES = 4
 };
 
-enum struct Bot {
-    float mouseX;
-    float mouseY;
-    float currentAngles[3];
-    Handle buttons;
-}
-
 Socket g_socket;
 bool g_isConnected = false;
 bool g_isStarted = false;
 int g_tickCount = 0;
-int g_botCount = 0;
-int g_botIds[MAX_BOTS];
-Bot g_bots[MAX_BOTS];
+int g_client = 0;
+float g_mouseX = 0.0;
+float g_mouseY = 0.0;
+float g_currentAngles[3];
+Handle g_buttons;
 
 public void OnPluginStart() {
+    g_buttons = CreateTrie();
+    ResetButtons(g_buttons);
+
     HookEvent("player_spawn", OnPlayerSpawn);
 
     g_socket = new Socket(SOCKET_TCP, OnSocketError);
@@ -54,19 +51,16 @@ public void OnPluginStart() {
     g_socket.Connect(OnSocketConnected, OnSocketReceive, OnSocketDisconnected, SERVER_HOST, SERVER_PORT);
 }
 
-public Action OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast) {
-    int client = GetClientOfUserId(event.GetInt("userid"));
-    if (IsClientInGame(client) && !IsFakeClient(client))
-    {
-        CreateTimer(0.5, MoveToSpectator, client, TIMER_FLAG_NO_MAPCHANGE);
-    }
-    return Plugin_Continue;
+void ResetButtons(Handle& buttons) {
+    SetTrieValue(buttons, "f", 0);
+    SetTrieValue(buttons, "b", 0);
 }
 
-public Action MoveToSpectator(Handle timer, any client) {
+public Action OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast) {
+    int client = GetClientOfUserId(event.GetInt("userid"));
     if (IsClientInGame(client))
     {
-        ChangeClientTeam(client, 1);
+        g_client = client;
     }
     return Plugin_Continue;
 }
@@ -139,46 +133,12 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
 }
 
 void HandleInit(const char[] data) {
-    char sepData[MAX_STRING_SEP][STRING_SIZE];
-    int sepDataCount;
-    SepString(data, ',', sepData, sepDataCount);
-
-    g_botCount = StringToInt(sepData[0]);
-    for (int i = 0; i < g_botCount; i++) {
-        if (i % 2 == 0) {
-            ServerCommand("bot_add t");
-        } else {
-            ServerCommand("bot_add ct");
-        }
-    }
-
-    float startAngle = StringToFloat(sepData[1]);
-    CreateTimer(0.5, FindBots, startAngle, TIMER_FLAG_NO_MAPCHANGE);
-
     char ipStr[32];
     int ip = GetConVarInt(FindConVar("hostip"));
     Format(ipStr, sizeof(ipStr), "%d.%d.%d.%d",
         (ip >> 24) & 255, (ip >> 16) & 255, (ip >> 8) & 255, ip & 255);
 
     SendMessage(INIT, ipStr);
-}
-
-public Action FindBots(Handle timer, float startAngle) {
-    int index = 0;
-    for (int client = 1; client <= MaxClients; client++) {
-        if (IsClientConnected(client) && IsFakeClient(client)) {
-            g_botIds[index] = client;
-
-            g_bots[index].currentAngles[1] = startAngle;
-
-            g_bots[index].buttons = CreateTrie();
-            ResetButtons(g_bots[index].buttons);
-
-            index++;
-        }
-    }
-
-    return Plugin_Continue;
 }
 
 void HandleStart(const char[] data) {
@@ -191,80 +151,58 @@ void HandleStart(const char[] data) {
     startPos[1] = StringToFloat(sepData[1]);
     startPos[2] = StringToFloat(sepData[2]);
 
-    for (int i = 0; i < g_botCount; i++) {
-        TeleportEntity(g_botIds[i], startPos, g_bots[i].currentAngles, NULL_VECTOR);
-    }
+    g_currentAngles[1] = StringToFloat(sepData[3]);
+
+    TeleportEntity(g_client, startPos, g_currentAngles, NULL_VECTOR);
 
     g_isStarted = true;
 }
 
-void ResetButtons(Handle& buttons) {
-    SetTrieValue(buttons, "f", 0);
-    SetTrieValue(buttons, "b", 0);
-}
-
 void HandleMoves(const char[] data) {
-    char botsData[MAX_STRING_SEP_BIG][STRING_SIZE_BIG];
+    char sepData[MAX_STRING_SEP_BIG][STRING_SIZE_BIG];
     int sepDataCount;
-    SepStringBig(data, ';', botsData, sepDataCount);
+    SepStringBig(data, ',', sepData, sepDataCount);
 
-    for (int i = 0; i < g_botCount; i++) {
-        char botData[MAX_STRING_SEP][STRING_SIZE];
-        int botDataCount;
-        SepString(botsData[i], ',', botData, botDataCount);
+    g_mouseX = StringToFloat(sepData[1]);
+    g_mouseY = StringToFloat(sepData[2]);
 
-        g_bots[i].mouseX = StringToFloat(botData[1]);
-        g_bots[i].mouseY = StringToFloat(botData[2]);
-
-        ResetButtons(g_bots[i].buttons);
-        if (StrContains(botData[0], "f") != -1) {
-            SetTrieValue(g_bots[i].buttons, "f", 1);
-        }
-        if (StrContains(botData[0], "b") != -1) {
-            SetTrieValue(g_bots[i].buttons, "b", 1);
-        }
+    ResetButtons(g_buttons);
+    if (StrContains(sepData[0], "f") != -1) {
+        SetTrieValue(g_buttons, "f", 1);
+    }
+    if (StrContains(sepData[0], "b") != -1) {
+        SetTrieValue(g_buttons, "b", 1);
     }
 }
 
 public void OnGameFrame() {
-    if (g_isConnected && g_isStarted) {
-        g_tickCount++;
+    if (!g_isConnected || !g_isStarted) return;
 
-        if (g_tickCount < TICKS_PER_MESSAGE) return;
-        g_tickCount = 0;
+    g_tickCount++;
+    if (g_tickCount < TICKS_PER_MESSAGE) return;
+    g_tickCount = 0;
 
-        char messageStr[STRING_SIZE_VERY_BIG];
-        for (int i = 0; i < g_botCount; i++) {
-            float position[3];
-            GetEntPropVector(g_botIds[i], Prop_Send, "m_vecOrigin", position);
+    float position[3];
+    GetEntPropVector(g_client, Prop_Send, "m_vecOrigin", position);
 
-            float velocity[3];
-            GetEntPropVector(g_botIds[i], Prop_Data, "m_vecVelocity", velocity);
+    float velocity[3];
+    GetEntPropVector(g_client, Prop_Data, "m_vecVelocity", velocity);
 
-            float totalVelocity = SquareRoot(velocity[0] * velocity[0] +
-                velocity[1] * velocity[1] +
-                velocity[2] * velocity[2]);
+    float totalVelocity = SquareRoot(velocity[0] * velocity[0] +
+        velocity[1] * velocity[1] +
+        velocity[2] * velocity[2]);
 
-            int isCrouch = 0;
-            if (GetEntProp(g_botIds[i], Prop_Send, "m_fFlags") & FL_DUCKING) {
-                isCrouch = 1;
-            }
-
-            char botStr[STRING_SIZE];
-            Format(botStr, sizeof(botStr), "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d",
-                position[0], position[1], position[2], g_bots[i].currentAngles[1],
-                velocity[0], velocity[1], velocity[2], totalVelocity, isCrouch);
-            
-            if (i == 0) {
-                Format(messageStr, sizeof(messageStr), "%s", botStr);
-            } else {
-                StrCat(messageStr, sizeof(messageStr), ";");
-                StrCat(messageStr, sizeof(messageStr), botStr);
-            }
-        }
-
-        SendMessage(TICK, messageStr);
+    int isCrouch = 0;
+    if (GetEntProp(g_client, Prop_Send, "m_fFlags") & FL_DUCKING) {
+        isCrouch = 1;
     }
+
+    char messageStr[STRING_SIZE_VERY_BIG];
+    Format(messageStr, sizeof(messageStr), "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d",
+        position[0], position[1], position[2], g_currentAngles[1],
+        velocity[0], velocity[1], velocity[2], totalVelocity, isCrouch);
+
+    SendMessage(TICK, messageStr);
 }
 
 public Action OnPlayerRunCmd(
@@ -281,20 +219,8 @@ public Action OnPlayerRunCmd(
     int mouse[2]
 )
 {
-    if (!g_isStarted)
+    if (!g_isStarted || g_client == 0)
     {
-        return Plugin_Continue;
-    }
-
-    int botIndex = -1;
-    for (int i = 0; i < g_botCount; i++) {
-        if (g_botIds[i] == client) {
-            botIndex = i;
-            break;
-        }
-    }
-
-    if (botIndex == -1) {
         return Plugin_Continue;
     }
 
@@ -305,18 +231,18 @@ public Action OnPlayerRunCmd(
     vel[2] = 0.0;
 
     int isF = 0;
-    GetTrieValue(g_bots[botIndex].buttons, "f", isF);
+    GetTrieValue(g_buttons, "f", isF);
     if (isF == 1) {
         vel[0] = 100000.0;
     }
 
-    g_bots[botIndex].currentAngles[0] = NormalizeDegree(g_bots[botIndex].currentAngles[0] + g_bots[botIndex].mouseY);
-    g_bots[botIndex].currentAngles[1] = NormalizeDegree(g_bots[botIndex].currentAngles[1] + g_bots[botIndex].mouseX);
+    g_currentAngles[0] = NormalizeDegree(g_currentAngles[0] + g_mouseY);
+    g_currentAngles[1] = NormalizeDegree(g_currentAngles[1] + g_mouseX);
 
-    angles[0] = g_bots[botIndex].currentAngles[0];
-    angles[1] = g_bots[botIndex].currentAngles[1];
+    angles[0] = g_currentAngles[0];
+    angles[1] = g_currentAngles[1];
     
-    TeleportEntity(client, NULL_VECTOR, g_bots[botIndex].currentAngles, NULL_VECTOR);
+    TeleportEntity(client, NULL_VECTOR, g_currentAngles, NULL_VECTOR);
 
     return Plugin_Changed;
 }
