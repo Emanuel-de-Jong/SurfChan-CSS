@@ -2,6 +2,7 @@
 #include <cstrike>
 #include <sdktools>
 #include <socket>
+#include <vphysics>
 
 public Plugin myinfo = {
     name = "surfchan_plugin",

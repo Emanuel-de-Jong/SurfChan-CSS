@@ -17,6 +17,7 @@ css_server/server/cstrike/addons/sourcemod/*
 css_server/server/cstrike/addons/sourcemod/extensions/*
 
 !css_server/server/cstrike/addons/sourcemod/extensions/socket.ext.dll
+!css_server/server/cstrike/addons/sourcemod/extensions/vphysics.ext.*.dll
 
 !css_server/server/cstrike/addons/sourcemod/plugins
 css_server/server/cstrike/addons/sourcemod/plugins/*
@@ -26,10 +27,14 @@ css_server/server/cstrike/addons/sourcemod/plugins/*
 !css_server/server/cstrike/addons/sourcemod/scripting
 css_server/server/cstrike/addons/sourcemod/scripting/*
 
+!css_server/server/cstrike/addons/sourcemod/scripting/constraints.sp
+!css_server/server/cstrike/addons/sourcemod/scripting/vphysics.sp
+
 !css_server/server/cstrike/addons/sourcemod/scripting/include
 css_server/server/cstrike/addons/sourcemod/scripting/include/*
 
 !css_server/server/cstrike/addons/sourcemod/scripting/include/socket.inc
+!css_server/server/cstrike/addons/sourcemod/scripting/include/vphysics.inc
 
 !css_server/server/cstrike/cfg
 css_server/server/cstrike/cfg/*
