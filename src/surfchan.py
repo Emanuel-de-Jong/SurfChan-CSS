@@ -3,7 +3,11 @@ import traceback
 import asyncio
 import shutil
 import os
+import numpy as np
+import win32gui
 import yaml
+import cv2
+import mss
 from enum import Enum
 
 class MESSAGE_TYPE(Enum):
@@ -23,10 +27,12 @@ class Message:
 config = None
 server_process = None
 css_process = None
+css_window_size = None
 socket = None
 cwriter = None
 message_queue = asyncio.Queue()
 finish_pos = None
+sct = mss.mss()
 
 def main():
     try:
@@ -204,7 +210,20 @@ async def run_ai(data):
     total_velocity = float(sep_data[7])
     is_crouch = sep_data[8]
 
+    screenshot = await get_screenshot()
+
     return f"f,1.0,0.0"
+
+async def get_screenshot():
+    global sct, css_window_size
+    screenshot = sct.grab(css_window_size)
+    screenshot = np.array(screenshot)
+
+    # TODO: Remove
+    if not os.path.exists("screenshot.png"):
+        cv2.imwrite("screenshot.png", screenshot)
+
+    return screenshot
 
 async def send_message(type, data):
     global cwriter
@@ -236,7 +255,7 @@ async def start_css(server_ip):
         "-exec", "autoexec", "+connect", server_ip])
 
 async def wait_for_start():
-    global config
+    global config, css_window_size
 
     print("Press enter to start training...")
     # Runs input() in a separate thread
@@ -245,6 +264,20 @@ async def wait_for_start():
     map_start_pos = config['maps'][config['map']]['start']
     await send_message(MESSAGE_TYPE.START, \
         f"{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]},{map_start_pos[3]}")
+    
+    hwnd = win32gui.FindWindow(None, "Counter-Strike Source")
+    if hwnd:
+        left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+
+        # Adjust for window border
+        left += 3
+        top += 26
+        right -= 3
+        bottom -= 9
+
+        width = right - left
+        height = bottom - top
+        css_window_size = { "left": left, "top": top, "width": width, "height": height }
 
 if __name__ == '__main__':
     main()

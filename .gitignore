@@ -1,6 +1,9 @@
 # Config
 config.yml
 
+# Testing
+screenshot.png
+
 # Server
 css_server/server/*
 
