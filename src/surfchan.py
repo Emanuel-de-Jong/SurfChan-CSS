@@ -109,6 +109,11 @@ async def start_server():
     if not os.path.exists(dst):
         shutil.copy2(os.path.join("assets", "server.cfg"), dst)
 
+    # Copy autoexec
+    dst = os.path.join(server_cfg_dir_path, "autoexec.cfg")
+    if not os.path.exists(dst):
+        shutil.copy2(os.path.join("assets", "autoexec_server.cfg"), dst)
+
     # Copy maps
     maps_dir_path = os.path.join("assets", "maps")
     server_maps_dir_path = os.path.join(server_path, "cstrike", "maps")
@@ -228,7 +233,7 @@ async def start_css(server_ip):
     css_cfg_dir_path = os.path.join(css_path, "cstrike", "cfg")
     dst = os.path.join(css_cfg_dir_path, "autoexec.cfg")
     if not os.path.exists(dst):
-        shutil.copy2(os.path.join("assets", "autoexec.cfg"), dst)
+        shutil.copy2(os.path.join("assets", "autoexec_css.cfg"), dst)
 
     # Copy maps
     maps_dir_path = os.path.join("assets", "maps")
