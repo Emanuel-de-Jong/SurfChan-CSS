@@ -13,6 +13,7 @@
 
 ### Run
 - `./run.bat`
+- In CSS, select a team and press `F1` to run visual commands
 
 ## Development
 ### Pre

@@ -96,29 +96,21 @@ async def load_config():
 async def start_server():
     global server_process
 
-    server_path = os.path.join("css_server", "server")
-    
     # Copy mapcycle
+    server_path = os.path.join("css_server", "server")
     server_cfg_dir_path = os.path.join(server_path, "cstrike", "cfg")
-    dst = os.path.join(server_cfg_dir_path, "mapcycle.txt")
-    if not os.path.exists(dst):
-        shutil.copy2(os.path.join("assets", "mapcycle.txt"), dst)
+    shutil.copy2(os.path.join("assets", "mapcycle.txt"), os.path.join(server_cfg_dir_path, "mapcycle.txt"))
 
     # Copy server config
-    dst = os.path.join(server_cfg_dir_path, "server.cfg")
-    if not os.path.exists(dst):
-        shutil.copy2(os.path.join("assets", "server.cfg"), dst)
+    shutil.copy2(os.path.join("assets", "server.cfg"), os.path.join(server_cfg_dir_path, "server.cfg"))
 
     # Copy autoexec
-    dst = os.path.join(server_cfg_dir_path, "autoexec.cfg")
-    if not os.path.exists(dst):
-        shutil.copy2(os.path.join("assets", "autoexec_server.cfg"), dst)
+    shutil.copy2(os.path.join("assets", "autoexec_server.cfg"), os.path.join(server_cfg_dir_path, "autoexec.cfg"))
 
     # Copy maps
     maps_dir_path = os.path.join("assets", "maps")
-    server_maps_dir_path = os.path.join(server_path, "cstrike", "maps")
     for map_path in os.listdir(maps_dir_path):
-        dst = os.path.join(server_maps_dir_path, map_path)
+        dst = os.path.join(server_path, "cstrike", "maps", map_path)
         if not os.path.exists(dst):
             shutil.copy2(os.path.join(maps_dir_path, map_path), dst)
 
@@ -227,26 +219,21 @@ async def send_message(type, data):
 async def start_css(server_ip):
     global config, css_process
 
-    css_path = config['css']['path']
-    
     # Copy autoexec
-    css_cfg_dir_path = os.path.join(css_path, "cstrike", "cfg")
-    dst = os.path.join(css_cfg_dir_path, "autoexec.cfg")
-    if not os.path.exists(dst):
-        shutil.copy2(os.path.join("assets", "autoexec_css.cfg"), dst)
+    css_path = config['css']['path']
+    shutil.copy2(os.path.join("assets", "autoexec_css.cfg"), os.path.join(css_path, "cstrike", "cfg", "autoexec.cfg"))
 
     # Copy maps
     maps_dir_path = os.path.join("assets", "maps")
-    css_maps_dir_path = os.path.join(css_path, "cstrike", "maps")
     for map_path in os.listdir(maps_dir_path):
-        dst = os.path.join(css_maps_dir_path, map_path)
+        dst = os.path.join(css_path, "cstrike", "maps", map_path)
         if not os.path.exists(dst):
             shutil.copy2(os.path.join(maps_dir_path, map_path), dst)
 
     css_exe_path = os.path.join(css_path, "hl2.exe")
     print("Starting CSS...")
     css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", \
-        "+exec", "autoexec.cfg", "+connect", server_ip])
+        "-exec", "autoexec", "+connect", server_ip])
 
 async def wait_for_start():
     global config
