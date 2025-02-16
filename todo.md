@@ -1,7 +1,5 @@
 **TODO**
 - fix stuttering
-- TR_TraceRay input
-- wireframe grayscale frame input
 - ppo model
 - 1 simple stage
 - full linear map with trace points
