@@ -3,6 +3,6 @@ pyyaml
 opencv-python
 mss
 pywin32
+gymnasium
 torch
-tianshou
-gym
+torchrl
