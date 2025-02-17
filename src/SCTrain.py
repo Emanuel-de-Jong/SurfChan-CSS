@@ -1,3 +1,4 @@
+import copy
 from collections import defaultdict
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -6,25 +7,26 @@ from torch import nn
 from tensordict.nn import TensorDictModule, set_composite_lp_aggregate
 from tensordict.nn.distributions import NormalParamExtractor
 from torchrl.collectors import SyncDataCollector
-from torchrl.data.replay_buffers import ReplayBuffer
-from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
-from torchrl.data.replay_buffers.storages import LazyTensorStorage
-from torchrl.envs import Compose, DoubleToFloat, ObservationNorm, StepCounter, TransformedEnv
+from torchrl.data.tensor_specs import BoundedTensorSpec, CompositeSpec
+from torchrl.data.data_buffers import ReplayBuffer
+from torchrl.data.data_buffers.samplers import SamplerWithoutReplacement
+from torchrl.data.data_buffers.storages import LazyTensorStorage
+from torchrl.envs import TransformedEnv, StepCounter, RenameTransform, ToTensorImage, DoubleToFloat, VecNorm
 from torchrl.envs.libs.gym import GymEnv
 from torchrl.envs.utils import ExplorationType, set_exploration_type
-from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator
+from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator, ConvNet, MLP, ActorValueOperator
 from torchrl.objectives import ClipPPOLoss
 from torchrl.objectives.value import GAE
+from torchrl.record.loggers.tensorboard import TensorboardLogger
 
 class SCTrain():
     def __init__(self):
-        set_composite_lp_aggregate(True)
-
-        device = torch.device(0) if torch.cuda.is_available() else torch.device("cpu")
+        device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         nodes_per_layer = 256
         lr = 0.0003
         max_grad_norm = 1.0
 
+        max_steps=4500
         frames_per_batch = 1000
         total_frames = frames_per_batch * 10
 
@@ -33,98 +35,152 @@ class SCTrain():
         clip_epsilon = 0.2
         gamma = 0.99
         lmbda = 0.95
-        entropy_eps =  	0.0001
+        entropy_eps = 0.0001
 
-        base_env = GymEnv("InvertedDoublePendulum-v4", device=device)
+        env = GymEnv("SurfChan")
+        env = TransformedEnv(env)
+        env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
+        env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
+        env.append_transform(StepCounter(max_steps=max_steps))
+        env.append_transform(DoubleToFloat())
+        env.append_transform(VecNorm(in_keys=["pixels"]))
 
-        env = TransformedEnv(
-            base_env,
-            Compose(
-                ObservationNorm(in_keys=["observation"]),
-                DoubleToFloat(),
-                StepCounter(),
-            ),
+        input_shape = env.observation_spec["pixels"].shape
+
+        num_outputs = 8
+        distribution_kwargs = {
+            "low": 0.0,
+            "high": 1.0,
+        }
+
+        common_cnn = ConvNet(
+            activation_class=torch.nn.ReLU,
+            num_cells=[32, 64, 64],
+            kernel_sizes=[8, 4, 3],
+            strides=[4, 2, 1],
+            device=device,
+        )
+        common_cnn_output = common_cnn(torch.ones(input_shape, device=device))
+
+        common_mlp = MLP(
+            in_features=common_cnn_output.shape[-1],
+            activation_class=torch.nn.ReLU,
+            activate_last_layer=True,
+            out_features=512,
+            num_cells=[],
+            device=device,
+        )
+        common_mlp_output = common_mlp(common_cnn_output)
+
+        common_module = TensorDictModule(
+            module=torch.nn.Sequential(common_cnn, common_mlp),
+            in_keys=["pixels"],
+            out_keys=["common_features"],
         )
 
-        env.transform[0].init_stats(num_iter=frames_per_batch, reduce_dim=0, cat_dim=0)
-
-        actor_net = nn.Sequential(
-            nn.LazyLinear(nodes_per_layer, device=device),
-            nn.Tanh(),
-            nn.LazyLinear(nodes_per_layer, device=device),
-            nn.Tanh(),
-            nn.LazyLinear(nodes_per_layer, device=device),
-            nn.Tanh(),
-            nn.LazyLinear(2 * env.action_spec.shape[-1], device=device),
-            NormalParamExtractor(),
+        policy_net = MLP(
+            in_features=common_mlp_output.shape[-1],
+            out_features=num_outputs,
+            activation_class=torch.nn.ReLU,
+            num_cells=[],
+            device=device,
         )
-
         policy_module = TensorDictModule(
-            actor_net, in_keys=["observation"], out_keys=["loc", "scale"]
+            module=policy_net,
+            in_keys=["common_features"],
+            out_keys=["logits"],
         )
 
+        spec = CompositeSpec(
+            action=BoundedTensorSpec(
+                low=0.0, high=1.0, shape=(num_outputs,), dtype=torch.float32, device=device
+            )
+        )
         policy_module = ProbabilisticActor(
-            module=policy_module,
-            spec=env.action_spec,
-            in_keys=["loc", "scale"],
+            policy_module,
+            in_keys=["logits"],
+            spec=spec,
             distribution_class=TanhNormal,
             distribution_kwargs={
-                "low": env.action_spec_unbatched.space.low,
-                "high": env.action_spec_unbatched.space.high,
+                "low": 0.0,
+                "high": 1.0,
             },
             return_log_prob=True,
+            default_interaction_type=ExplorationType.RANDOM,
         )
 
-        value_net = nn.Sequential(
-            nn.LazyLinear(nodes_per_layer, device=device),
-            nn.Tanh(),
-            nn.LazyLinear(nodes_per_layer, device=device),
-            nn.Tanh(),
-            nn.LazyLinear(nodes_per_layer, device=device),
-            nn.Tanh(),
-            nn.LazyLinear(1, device=device),
+        value_net = MLP(
+            activation_class=torch.nn.ReLU,
+            in_features=common_mlp_output.shape[-1],
+            out_features=1,
+            num_cells=[],
+            device=device,
         )
-
         value_module = ValueOperator(
-            module=value_net,
-            in_keys=["observation"],
+            value_net,
+            in_keys=["common_features"],
         )
-
         dummy_tensordict = env.reset()
         value_module(dummy_tensordict)
 
+        actor_critic = ActorValueOperator(
+            common_operator=common_module,
+            policy_operator=policy_module,
+            value_operator=value_module,
+        )
+
+        actor = actor_critic.get_policy_operator()
+        critic = actor_critic.get_value_operator()
+
         collector = SyncDataCollector(
-            env,
-            policy_module,
+            create_env_fn=env,
+            policy=actor,
             frames_per_batch=frames_per_batch,
             total_frames=total_frames,
-            split_trajs=False,
             device=device,
+            max_frames_per_traj=-1,
         )
 
-        replay_buffer = ReplayBuffer(
-            storage=LazyTensorStorage(max_size=frames_per_batch),
+        data_buffer = ReplayBuffer(
+            storage=LazyTensorStorage(
+                max_size=frames_per_batch,
+                device=device
+            ),
             sampler=SamplerWithoutReplacement(),
+            batch_size=sub_batch_size,
         )
 
-        advantage_module = GAE(
-            gamma=gamma, lmbda=lmbda, value_network=value_module, average_gae=True
+        adv_module = GAE(
+            gamma=gamma,
+            lmbda=lmbda,
+            value_network=critic,
+            average_gae=False,
+            device=device
         )
 
         loss_module = ClipPPOLoss(
-            actor_network=policy_module,
-            critic_network=value_module,
+            actor_network=actor,
+            critic_network=critic,
             clip_epsilon=clip_epsilon,
-            entropy_bonus=bool(entropy_eps),
-            entropy_coef=entropy_eps,
-            critic_coef=1.0,
             loss_critic_type="smooth_l1",
+            entropy_coef=entropy_eps,
+            entropy_bonus=bool(entropy_eps),
+            critic_coef=1.0,
+            normalize_advantage=True
         )
+
+        adv_module.set_keys(done="end-of-life", terminated="end-of-life")
+        loss_module.set_keys(done="end-of-life", terminated="end-of-life")
 
         optim = torch.optim.Adam(loss_module.parameters(), lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optim, total_frames // frames_per_batch, 0.0
         )
+
+        logger = TensorboardLogger("SCLogger", "logs")
+
+        test_env = copy.deepcopy(env)
+        test_env.eval()
 
         logs = defaultdict(list)
         pbar = tqdm(total=total_frames)
@@ -132,11 +188,11 @@ class SCTrain():
 
         for i, tensordict_data in enumerate(collector):
             for _ in range(num_epochs):
-                advantage_module(tensordict_data)
+                adv_module(tensordict_data)
                 data_view = tensordict_data.reshape(-1)
-                replay_buffer.extend(data_view.cpu())
+                data_buffer.extend(data_view.cpu())
                 for _ in range(frames_per_batch // sub_batch_size):
-                    subdata = replay_buffer.sample(sub_batch_size)
+                    subdata = data_buffer.sample(sub_batch_size)
                     loss_vals = loss_module(subdata.to(device))
                     loss_value = (
                         loss_vals["loss_objective"]

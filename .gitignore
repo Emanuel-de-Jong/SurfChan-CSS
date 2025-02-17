@@ -1,6 +1,9 @@
 # Config
 config.yml
 
+# Logs
+logs/
+
 # Testing
 screenshot.png
 
