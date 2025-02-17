@@ -1,5 +1,8 @@
 map: "beginner"
 
+model:
+  img_size: 500
+
 css:
   path: C:\[PATH_TO_STEAM]\steamapps\common\Counter-Strike Source
   close_on_script_close: True

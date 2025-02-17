@@ -250,9 +250,10 @@ async def start_css(server_ip):
             shutil.copy2(os.path.join(maps_dir_path, map_path), dst)
 
     css_exe_path = os.path.join(css_path, "hl2.exe")
+    window_size = str(config['model']['img_size'])
     print("Starting CSS...")
     css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", \
-        "-exec", "autoexec", "+connect", server_ip])
+        "-exec", "autoexec", "+connect", server_ip, "-w", window_size, "-h", window_size])
 
 async def wait_for_start():
     global config, css_window_size
@@ -272,12 +273,8 @@ async def wait_for_start():
         # Adjust for window border
         left += 3
         top += 26
-        right -= 3
-        bottom -= 9
-
-        width = right - left
-        height = bottom - top
-        css_window_size = { "left": left, "top": top, "width": width, "height": height }
+        img_size = config['model']['img_size']
+        css_window_size = { "left": left, "top": top, "width": img_size, "height": img_size }
 
 if __name__ == '__main__':
     main()
