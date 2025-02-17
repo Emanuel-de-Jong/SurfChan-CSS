@@ -6,3 +6,6 @@ pywin32
 gymnasium
 torch
 torchrl
+tqdm
+matplotlib
+tensordict
