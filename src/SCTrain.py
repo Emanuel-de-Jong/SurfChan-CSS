@@ -1,10 +1,10 @@
-from tqdm import tqdm
+import tqdm
 import torch
 from tensordict import TensorDict
 from tensordict.nn import TensorDictModule
 from torchrl.collectors import SyncDataCollector
 from torchrl.data import LazyTensorStorage, TensorDictReplayBuffer
-from torchrl.data.tensor_specs import BoundedTensorSpec, CompositeSpec
+from torchrl.data.tensor_specs import Bounded, Composite
 from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
 from torchrl.envs.utils import ExplorationType, set_exploration_type
 from torchrl.modules import (
@@ -109,6 +109,7 @@ class SCTrain():
             device=self.device,
             is_test=True
         )
+        test_env = test_env.append_transform(VideoRecorder(logger, tag="rendering/test", in_keys=["pixels_int"]))
         test_env.eval()
 
         collected_frames = 0
@@ -284,8 +285,8 @@ class SCTrain():
             out_keys=["loc", "scale"],
         )
 
-        spec = CompositeSpec(
-            action=BoundedTensorSpec(
+        spec = Composite(
+            action=Bounded(
                 low=0.0, high=1.0, shape=(num_outputs,), dtype=torch.float32, device=self.device
             )
         )
