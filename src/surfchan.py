@@ -6,7 +6,6 @@ import os
 import numpy as np
 import win32gui
 import yaml
-import cv2
 import mss
 from enum import Enum
 
@@ -25,6 +24,7 @@ class Message:
         return f"{self.type.value}:{self.data}"
 
 config = None
+step = None
 server_process = None
 css_process = None
 css_window_size = None
@@ -34,8 +34,12 @@ message_queue = asyncio.Queue()
 finish_pos = None
 sct = mss.mss()
 
-def main():
+def main(_step):
+    global step
+
     try:
+        step = _step
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(run())
@@ -200,7 +204,7 @@ async def handle_message(message):
         await send_message(MESSAGE_TYPE.MOVES, moves)
 
 async def run_ai(data):
-    global finish_pos
+    global step, finish_pos
 
     sep_data = data.split(",")
 
@@ -212,18 +216,12 @@ async def run_ai(data):
 
     screenshot = await get_screenshot()
 
-    return f"f,1.0,0.0"
+    return step(screenshot, finish_pos, position)
 
 async def get_screenshot():
     global sct, css_window_size
     screenshot = sct.grab(css_window_size)
-    screenshot = np.array(screenshot)
-
-    # TODO: Remove
-    if not os.path.exists("screenshot.png"):
-        cv2.imwrite("screenshot.png", screenshot)
-
-    return screenshot
+    return np.array(screenshot)
 
 async def send_message(type, data):
     global cwriter
