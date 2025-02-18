@@ -1,9 +1,11 @@
-from surfchan import main
+from SCGame import SCGame
 
-config = None
+class SCEnv:
+    def __init__(self):
+        self.game = SCGame(self.step)
 
-def step(screenshot, finish_pos, player_pos):
-    return f"f,1.0,0.0"
+    def step(self, screenshot, finish_pos, player_pos):
+        return f"f,1.0,0.0"
 
-if __name__ == '__main__':
-    main(step)
+if __name__ == "__main__":
+    env = SCEnv()
