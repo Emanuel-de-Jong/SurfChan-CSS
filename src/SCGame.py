@@ -64,6 +64,7 @@ class SCGame:
     socket_writer = None
     message_queue = None
     css_process = None
+    should_run_ai = True
     sct = mss.mss()
     css_window_size = None
 
@@ -165,9 +166,10 @@ class SCGame:
             server_ip = message.data
             await self.start_css(server_ip)
         elif message.type == MESSAGE_TYPE.TICK:
-            if not self.config.game.no_ai:
-                moves = await self.run_ai(message.data)
-                await self.send_message(MESSAGE_TYPE.MOVES, moves)
+            moves = '0'
+            if self.should_run_ai:
+                moves = f'1,{await self.run_ai(message.data)}'
+            await self.send_message(MESSAGE_TYPE.MOVES, moves)
 
     async def start_css(self, server_ip):
         # Copy autoexec

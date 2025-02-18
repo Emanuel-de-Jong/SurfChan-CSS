@@ -1,5 +1,7 @@
 import gymnasium as gym
 import numpy as np
+from torchrl.envs import TransformedEnv, StepCounter, RenameTransform, ToTensorImage, DoubleToFloat, VecNorm
+from torchrl.envs.libs.gym import GymEnv
 from config import get_config
 from SCGame import SCGame
 
@@ -78,3 +80,17 @@ class SCEnv(gym.Env):
     def close(self):
         if self.game:
             self.game.close()
+
+def create_torchrl_env():
+    config = get_config()
+    gym.register(config.env.name, lambda: SCEnv())
+
+    env = GymEnv(config.env.name)
+    env = TransformedEnv(env)
+    env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
+    env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
+    env.append_transform(StepCounter(max_steps=10000))
+    env.append_transform(DoubleToFloat())
+    env.append_transform(VecNorm(in_keys=["pixels"]))
+    
+    return env

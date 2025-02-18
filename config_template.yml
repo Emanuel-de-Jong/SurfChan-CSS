@@ -14,8 +14,7 @@ model:
 env:
   name: SurfChan
 
-game:
-  no_ai: False
+# game:
 
 css:
   path: C:\[PATH_TO_STEAM]\steamapps\common\Counter-Strike Source

@@ -11,8 +11,6 @@ from torchrl.data.tensor_specs import BoundedTensorSpec, CompositeSpec
 from torchrl.data.data_buffers import ReplayBuffer
 from torchrl.data.data_buffers.samplers import SamplerWithoutReplacement
 from torchrl.data.data_buffers.storages import LazyTensorStorage
-from torchrl.envs import TransformedEnv, StepCounter, RenameTransform, ToTensorImage, DoubleToFloat, VecNorm
-from torchrl.envs.libs.gym import GymEnv
 from torchrl.envs.utils import ExplorationType, set_exploration_type
 from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator, ConvNet, MLP, ActorValueOperator
 from torchrl.objectives import ClipPPOLoss
@@ -21,7 +19,9 @@ from torchrl.record.loggers.tensorboard import TensorboardLogger
 from config import get_config
 
 class SCTrain():
-    def __init__(self):
+    def __init__(self, env):
+        self.env = env
+        
         self.config = get_config()
         
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
@@ -38,14 +38,6 @@ class SCTrain():
         gamma = 0.99
         lmbda = 0.95
         entropy_eps = 0.0001
-
-        env = GymEnv(self.config.env.name, self.config.train.map)
-        env = TransformedEnv(env)
-        env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
-        env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
-        env.append_transform(StepCounter(max_steps=max_steps))
-        env.append_transform(DoubleToFloat())
-        env.append_transform(VecNorm(in_keys=["pixels"]))
 
         input_shape = env.observation_spec["pixels"].shape
 
@@ -95,7 +87,7 @@ class SCTrain():
 
         spec = CompositeSpec(
             action=BoundedTensorSpec(
-                low=0.0, high=1.0, shape=(num_outputs,), dtype=torch.float32, device=device
+                low=0.0, high=1.0, shape=(num_outputs,), dtype=torch.float32, device=self.device
             )
         )
         policy_module = ProbabilisticActor(
@@ -247,6 +239,3 @@ class SCTrain():
         plt.plot(logs["eval step_count"])
         plt.title("Max step count (test)")
         plt.show()
-
-if __name__ == "__main__":
-    train = SCTrain()

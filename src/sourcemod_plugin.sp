@@ -5,7 +5,7 @@
 #include <vphysics>
 
 public Plugin myinfo = {
-    name = "surfchan_plugin",
+    name = "surfchan",
     author = "Anon",
     description = "SurfChan",
     version = "0.1"
@@ -32,6 +32,7 @@ enum MESSAGE_TYPE {
 Socket g_socket;
 bool g_isConnected = false;
 bool g_isStarted = false;
+bool g_shouldRunAI = true;
 int g_tickCount = 0;
 int g_client = 0;
 float g_mouseX = 0.0;
@@ -163,14 +164,17 @@ void HandleMoves(const char[] data) {
     int sepDataCount;
     SepStringBig(data, ',', sepData, sepDataCount);
 
-    g_mouseX = StringToFloat(sepData[1]);
-    g_mouseY = StringToFloat(sepData[2]);
+    g_shouldRunAI = StringToInt(sepData[0]) == 1;
+    if (!g_shouldRunAI) return;
+
+    g_mouseX = StringToFloat(sepData[2]);
+    g_mouseY = StringToFloat(sepData[3]);
 
     ResetButtons(g_buttons);
-    if (StrContains(sepData[0], "f") != -1) {
+    if (StrContains(sepData[1], "f") != -1) {
         SetTrieValue(g_buttons, "f", 1);
     }
-    if (StrContains(sepData[0], "b") != -1) {
+    if (StrContains(sepData[1], "b") != -1) {
         SetTrieValue(g_buttons, "b", 1);
     }
 }
@@ -219,7 +223,7 @@ public Action OnPlayerRunCmd(
     int mouse[2]
 )
 {
-    if (!g_isStarted || g_client == 0)
+    if (!g_isStarted || g_client == 0 || !g_shouldRunAI)
     {
         return Plugin_Continue;
     }
