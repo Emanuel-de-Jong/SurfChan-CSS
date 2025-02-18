@@ -20,9 +20,6 @@ class Message:
         self.type = type
         self.data = data
     
-    def __str__(self):
-        return f"{self.type.value}:{self.data}"
-    
     @staticmethod
     def decode(message_str):
         message_str = message_str.strip()
@@ -43,6 +40,9 @@ class Message:
             return None
         
         return Message(MESSAGE_TYPE(message_type), message_parts[1])
+    
+    def __str__(self):
+        return f"{self.type.value}:{self.data}"
 
 class Map:
     def __init__(self, name, start, finish):
@@ -55,15 +55,15 @@ class Map:
 
 class SCGame:
     env = None
-    map = None
     config = None
+    map = None
     server_process = None
-    css_process = None
-    css_window_size = None
     socket = None
-    cwriter = None
-    message_queue = asyncio.Queue()
+    socket_writer = None
+    message_queue = None
+    css_process = None
     sct = mss.mss()
+    css_window_size = None
 
     def __init__(self, env, map_name):
         try:
@@ -79,12 +79,6 @@ class SCGame:
         finally:
             loop.close()
 
-    async def shutdown_handler(self):
-        print("\nShutting down...")
-        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-        [task.cancel() for task in tasks]
-        await asyncio.gather(*tasks, return_exceptions=True)
-
     async def run(self, map_name):
         try:
             self.config = get_config()
@@ -93,7 +87,7 @@ class SCGame:
             await self.start_server()
             await self.start_socket()
 
-            while not self.cwriter:
+            while not self.socket_writer:
                 await asyncio.sleep(0.1)
 
             asyncio.create_task(self.process_messages())
@@ -122,6 +116,10 @@ class SCGame:
             
             if self.css_process and self.config.css.close_on_script_close:
                 self.css_process.kill()
+    
+    async def change_map(self, map_name):
+        map_config = self.config.maps[map_name]
+        self.map = Map(map_name, map_config.start, map_config.finish)
 
     async def start_server(self):
         # Copy mapcycle
@@ -155,8 +153,9 @@ class SCGame:
             addr = writer.get_extra_info('peername')
             print(f"Connected by {addr}")
 
-            self.cwriter = writer
+            self.socket_writer = writer
 
+            self.message_queue = asyncio.Queue()
             while True:
                 data = await reader.read(8000)
                 if not data:
@@ -175,7 +174,7 @@ class SCGame:
             traceback.print_exc()
         finally:
             print(f"Disconnecting {addr}...")
-            self.cwriter = None
+            self.socket_writer = None
             writer.close()
             await writer.wait_closed()
 
@@ -197,6 +196,24 @@ class SCGame:
                 moves = await self.run_ai(message.data)
                 await self.send_message(MESSAGE_TYPE.MOVES, moves)
 
+    async def start_css(self, server_ip):
+        # Copy autoexec
+        css_path = self.config.css.path
+        shutil.copy2(os.path.join("assets", "autoexec_css.cfg"), os.path.join(css_path, "cstrike", "cfg", "autoexec.cfg"))
+
+        # Copy maps
+        maps_dir_path = os.path.join("assets", "maps")
+        for map_path in os.listdir(maps_dir_path):
+            dst = os.path.join(css_path, "cstrike", "maps", map_path)
+            if not os.path.exists(dst):
+                shutil.copy2(os.path.join(maps_dir_path, map_path), dst)
+
+        css_exe_path = os.path.join(css_path, "hl2.exe")
+        window_size = str(self.config.model.img_size)
+        print("Starting CSS...")
+        self.css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", \
+            "-exec", "autoexec", "+connect", server_ip, "-w", window_size, "-h", window_size])
+
     async def run_ai(self, data):
         sep_data = data.split(",")
 
@@ -215,31 +232,13 @@ class SCGame:
         return np.array(screenshot)
 
     async def send_message(self, type, data):
-        if not self.cwriter or self.cwriter.is_closing():
+        if not self.socket_writer or self.socket_writer.is_closing():
             return
 
         message = Message(type, data)
         message_str = str(message)
-        self.cwriter.write(message_str.encode())
-        await self.cwriter.drain()
-
-    async def start_css(self, server_ip):
-        # Copy autoexec
-        css_path = self.config.css.path
-        shutil.copy2(os.path.join("assets", "autoexec_css.cfg"), os.path.join(css_path, "cstrike", "cfg", "autoexec.cfg"))
-
-        # Copy maps
-        maps_dir_path = os.path.join("assets", "maps")
-        for map_path in os.listdir(maps_dir_path):
-            dst = os.path.join(css_path, "cstrike", "maps", map_path)
-            if not os.path.exists(dst):
-                shutil.copy2(os.path.join(maps_dir_path, map_path), dst)
-
-        css_exe_path = os.path.join(css_path, "hl2.exe")
-        window_size = str(self.config.model.img_size)
-        print("Starting CSS...")
-        self.css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", \
-            "-exec", "autoexec", "+connect", server_ip, "-w", window_size, "-h", window_size])
+        self.socket_writer.write(message_str.encode())
+        await self.socket_writer.drain()
 
     async def wait_for_start(self):
         print("Press enter to start training...")
@@ -259,7 +258,9 @@ class SCGame:
             top += 26
             img_size = self.config.model.img_size
             self.css_window_size = { "left": left, "top": top, "width": img_size, "height": img_size }
-    
-    async def change_map(self, map_name):
-        map_config = self.config.maps[map_name]
-        self.map = Map(map_name, map_config.start, map_config.finish)
+
+    async def shutdown_handler(self):
+        print("\nShutting down...")
+        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+        [task.cancel() for task in tasks]
+        await asyncio.gather(*tasks, return_exceptions=True)
