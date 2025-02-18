@@ -1,4 +1,5 @@
 import asyncio
+import time
 import gymnasium as gym
 import numpy as np
 from torchrl.envs import (
@@ -14,6 +15,8 @@ from torchrl.envs import (
     SignTransform
 )
 from torchrl.envs.libs.gym import GymEnv
+from tensordict import TensorDict
+import torch
 from config import get_config
 from SCGame import SCGame
 
@@ -92,18 +95,35 @@ class SCEnv(gym.Env):
         obs = self._get_obs()
         return obs, {}
     
+    def fake_tensordict(self):
+        reward_spec = {"reward": torch.tensor(0.0)}
+        done_spec = {"done": torch.tensor(False)}
+
+        fake_obs = {"pixels": torch.zeros((self.size, self.size, 3), dtype=torch.uint8)}
+        fake_action = {"keys": torch.tensor(0), "mouse": torch.zeros((2,), dtype=torch.float32)}
+        
+        fake_tensordict = TensorDict({
+            **fake_obs,
+            **fake_action,
+            **reward_spec,
+            **done_spec,
+            "next": {**fake_obs, **reward_spec, **done_spec},
+        }, batch_size=[])
+
+        return fake_tensordict
+    
     def close(self):
         if self.game:
             self.game.close()
 
-def create_torchrl_env(name, num_envs=1, device="cpu", is_test=False, base_only=False):
+def create_torchrl_env(name, map, num_envs=1, device="cpu", is_test=False, base_only=False):
     env = None
     if base_only:
-        env = _create_torchrl_base_env(name)
+        env = _create_torchrl_base_env(name, map)
     else:
         env = ParallelEnv(
             num_envs,
-            EnvCreator(lambda: _create_torchrl_base_env(name)),
+            EnvCreator(lambda: _create_torchrl_base_env(name, map)),
             serial_for_single=True,
             device=device
         )
@@ -119,7 +139,11 @@ def create_torchrl_env(name, num_envs=1, device="cpu", is_test=False, base_only=
     
     return env
 
-def _create_torchrl_base_env(name):
+def _create_torchrl_base_env(name, map):
     env = GymEnv(name)
     env = TransformedEnv(env)
+
+    asyncio.create_task(env.env.start(map))
+    time.sleep(3)
+
     return env

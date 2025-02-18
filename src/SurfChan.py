@@ -60,10 +60,10 @@ class SurfChan():
     async def create_play(self):
         self.env = create_torchrl_env(
             name=self.config.env.name,
+            map=self.config.infer.map,
             base_only=True
         )
         self.env.env.game.should_run_ai = False
-        await self.env.env.start(self.config.infer.map)
     
     def create_train(self):
         self.train = SCTrain()

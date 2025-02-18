@@ -1,19 +1,21 @@
-import copy
-import warnings
-from collections import defaultdict
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 import torch
-from torch import nn
 from tensordict import TensorDict
-from tensordict.nn import TensorDictModule, set_composite_lp_aggregate
-from tensordict.nn.distributions import NormalParamExtractor
+from tensordict.nn import TensorDictModule
 from torchrl.collectors import SyncDataCollector
 from torchrl.data import LazyTensorStorage, TensorDictReplayBuffer
 from torchrl.data.tensor_specs import BoundedTensorSpec, CompositeSpec
 from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
 from torchrl.envs.utils import ExplorationType, set_exploration_type
-from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator, ConvNet, MLP, ActorValueOperator
+from torchrl.modules import (
+    ProbabilisticActor,
+    TanhNormal,
+    ValueOperator,
+    ConvNet,
+    MLP,
+    ActorValueOperator,
+    NormalParamExtractor
+)
 from torchrl.objectives import ClipPPOLoss
 from torchrl.objectives.value import GAE
 from torchrl.record import VideoRecorder
@@ -38,8 +40,10 @@ class SCTrain():
         compile_mode = "reduce-overhead"
         
         env_name = self.config.env.name
+        map = self.config.train.map
         self.env = create_torchrl_env(
             name=env_name,
+            map=map,
             num_envs=self.config.train.num_envs,
             device=self.device
         )
@@ -49,6 +53,7 @@ class SCTrain():
         collector = SyncDataCollector(
             create_env_fn=create_torchrl_env(
                 name=env_name,
+                map=map,
                 num_envs=self.config.train.num_envs,
                 device=self.device
             ),
@@ -95,10 +100,11 @@ class SCTrain():
             eps=self.config.train.optim.eps,
         )
 
-        logger = TensorboardLogger(log_dir="logs")
+        logger = TensorboardLogger(exp_name="SurfChan", log_dir="logs")
 
         test_env = create_torchrl_env(
             name=env_name,
+            map=map,
             num_envs=1,
             device=self.device,
             is_test=True
@@ -142,13 +148,13 @@ class SCTrain():
             update = compile_with_warmup(update, mode=compile_mode, warmup=1)
             adv_module = compile_with_warmup(adv_module, mode=compile_mode, warmup=1)
 
-        # extract cfg variables
         cfg_loss_ppo_epochs = self.config.train.loss.ppo_epochs
         cfg_optim_anneal_lr = self.config.train.optim.anneal_lr
         cfg_optim_lr = self.config.train.optim.lr
         cfg_loss_anneal_clip_eps = self.config.train.loss.anneal_clip_epsilon
         cfg_loss_clip_epsilon = self.config.train.loss.clip_epsilon
         cfg_optim_max_grad_norm = self.config.train.optim.max_grad_norm
+        
         losses = TensorDict(batch_size=[cfg_loss_ppo_epochs, num_mini_batches])
 
         collector_iter = iter(collector)
@@ -164,7 +170,6 @@ class SCTrain():
             collected_frames += frames_in_batch
             pbar.update(frames_in_batch)
 
-            # Get training rewards and episode lengths
             episode_rewards = data["next", "episode_reward"][data["next", "terminated"]]
             if len(episode_rewards) > 0:
                 episode_length = data["next", "step_count"][data["next", "terminated"]]
@@ -237,7 +242,7 @@ class SCTrain():
         
     def make_models(self):
         input_shape = self.env.observation_spec["pixels"].shape
-        num_outputs = self.env.action_spec["keys"].shape[0]
+        num_outputs = self.env.action_spec["keys"].n
 
         common_cnn = ConvNet(
             activation_class=torch.nn.ReLU,
@@ -264,16 +269,19 @@ class SCTrain():
         )
 
         policy_net = MLP(
-            in_features=common_mlp_output.shape[-1],
-            out_features=num_outputs,
+            in_features=common_mlp.out_features,
+            out_features=num_outputs * 2,
             activation_class=torch.nn.ReLU,
             num_cells=[],
             device=self.device,
         )
         policy_module = TensorDictModule(
-            module=policy_net,
+            module=torch.nn.Sequential(
+                policy_net,
+                NormalParamExtractor(scale_mapping="exp")
+            ),
             in_keys=["common_features"],
-            out_keys=["logits"],
+            out_keys=["loc", "scale"],
         )
 
         spec = CompositeSpec(
@@ -284,7 +292,7 @@ class SCTrain():
 
         policy_module = ProbabilisticActor(
             policy_module,
-            in_keys=["logits"],
+            in_keys=["loc", "scale"],
             spec=spec,
             distribution_class=TanhNormal,
             distribution_kwargs={
@@ -342,3 +350,6 @@ class SCTrain():
             test_rewards.append(reward.cpu())
         del td_test
         return torch.cat(test_rewards, 0).mean()
+
+    def close(self):
+        pass
