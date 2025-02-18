@@ -85,7 +85,7 @@ class SCGame:
             while not self.css_process:
                 await asyncio.sleep(0.1)
 
-            asyncio.run(self.wait_for_start())
+            await self.wait_for_start()
         except asyncio.CancelledError:
             pass
     
@@ -230,15 +230,9 @@ class SCGame:
             self.css_window_size = { "left": left, "top": top, "width": img_size, "height": img_size }
     
     def close(self):
-        tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-        if tasks:
-            [task.cancel() for task in tasks]
-            asyncio.run(asyncio.gather(*tasks, return_exceptions=True))
-        
         if self.socket:
             self.socket.close()
-            asyncio.run(self.socket.wait_closed())
-        
+
         if self.css_process and self.config.css.close_on_script_close:
             self.css_process.kill()
         

@@ -1,4 +1,3 @@
-import traceback
 import asyncio
 import gymnasium as gym
 from torchrl.envs.libs.gym import GymEnv
@@ -23,11 +22,20 @@ async def main():
             await asyncio.sleep(1)
     except KeyboardInterrupt:
         pass
-    except Exception:
-        traceback.print_exc()
+    except asyncio.CancelledError:
+        pass
     finally:
+        print("Closing...")
+        
         if env:
             env.close()
+        
+        tasks = [task for task in asyncio.all_tasks() if task is not asyncio.current_task()]
+        if tasks:
+            for task in tasks:
+                task.cancel()
+            
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
