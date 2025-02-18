@@ -5,9 +5,9 @@ import shutil
 import os
 import numpy as np
 import win32gui
-import yaml
 import mss
 from enum import Enum
+from config import get_config
 
 class MESSAGE_TYPE(Enum):
     INIT = 1
@@ -22,26 +22,56 @@ class Message:
     
     def __str__(self):
         return f"{self.type.value}:{self.data}"
+    
+    @staticmethod
+    def decode(message_str):
+        message_str = message_str.strip()
+        
+        if not message_str:
+            print("Empty message received")
+            return None
+
+        message_parts = message_str.split(":")
+        if len(message_parts) != 2:
+            print(f"Message has invalid format: {message_str}")
+            return None
+        
+        try:
+            message_type = int(message_parts[0])
+        except Exception:
+            print(f"Invalid message type: {message_parts[0]}")
+            return None
+        
+        return Message(MESSAGE_TYPE(message_type), message_parts[1])
+
+class Map:
+    def __init__(self, name, start, finish):
+        self.name = name
+        self.start = start
+        self.finish = finish
+
+    def full_name(self):
+        return f"surf_{self.name}"
 
 class SCGame:
+    env = None
+    map = None
     config = None
-    step = None
     server_process = None
     css_process = None
     css_window_size = None
     socket = None
     cwriter = None
     message_queue = asyncio.Queue()
-    finish_pos = None
     sct = mss.mss()
 
-    def __init__(self, step):
+    def __init__(self, env, map_name):
         try:
-            self.step = step
+            self.env = env
 
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.run())
+            loop.run_until_complete(self.run(map_name))
         except KeyboardInterrupt:
             loop.run_until_complete(self.shutdown_handler())
         except Exception:
@@ -55,9 +85,10 @@ class SCGame:
         [task.cancel() for task in tasks]
         await asyncio.gather(*tasks, return_exceptions=True)
 
-    async def run(self):
+    async def run(self, map_name):
         try:
-            await self.load_config()
+            self.config = get_config()
+            await self.change_map(map_name)
 
             await self.start_server()
             await self.start_socket()
@@ -86,17 +117,11 @@ class SCGame:
                 self.socket.close()
                 await self.socket.wait_closed()
             
-            if self.server_process and self.config['server']['close_on_script_close']:
+            if self.server_process and self.config.server.close_on_script_close:
                 self.server_process.kill()
             
-            if self.css_process and self.config['css']['close_on_script_close']:
+            if self.css_process and self.config.css.close_on_script_close:
                 self.css_process.kill()
-
-    async def load_config(self):
-        with open("config.yml", "r") as config_file:
-            self.config = yaml.safe_load(config_file)
-        
-        self.finish_pos = self.config['maps'][self.config['map']]['finish']
 
     async def start_server(self):
         # Copy mapcycle
@@ -117,14 +142,13 @@ class SCGame:
             if not os.path.exists(dst):
                 shutil.copy2(os.path.join(maps_dir_path, map_path), dst)
 
-        map = f"surf_{self.config['map']}"
         print("Starting server...")
         self.server_process = subprocess.Popen(["css_server/server/srcds.exe", "-console", "-game", "cstrike", "-insecure", "-tickrate", "66", \
-            "+maxplayers", "2", "+map", map])
+            "+maxplayers", "2", "+map", self.map.full_name()])
 
     async def start_socket(self):
         print("Starting socket...")
-        self.socket = await asyncio.start_server(self.handle_client, self.config['server']['host'], self.config['server']['port'])
+        self.socket = await asyncio.start_server(self.handle_client, self.config.server.host, self.config.server.port)
 
     async def handle_client(self, reader, writer):
         try:
@@ -140,7 +164,7 @@ class SCGame:
                     break
 
                 message_str = data.decode()
-                message = await self.decode_message(message_str)
+                message = Message.decode(message_str)
                 if not message:
                     continue
 
@@ -151,29 +175,9 @@ class SCGame:
             traceback.print_exc()
         finally:
             print(f"Disconnecting {addr}...")
-            cwriter = None
+            self.cwriter = None
             writer.close()
             await writer.wait_closed()
-
-    async def decode_message(self, message_str):
-        message_str = message_str.strip()
-        
-        if not message_str:
-            print("Empty message received")
-            return None
-
-        message_parts = message_str.split(":")
-        if len(message_parts) != 2:
-            print(f"Message has invalid format: {message_str}")
-            return None
-        
-        try:
-            message_type = int(message_parts[0])
-        except Exception:
-            print(f"Invalid message type: {message_parts[0]}")
-            return None
-        
-        return Message(MESSAGE_TYPE(message_type), message_parts[1])
 
     async def process_messages(self):
         while True:
@@ -189,8 +193,9 @@ class SCGame:
             server_ip = message.data
             await self.start_css(server_ip)
         elif message.type == MESSAGE_TYPE.TICK:
-            moves = await self.run_ai(message.data)
-            await self.send_message(MESSAGE_TYPE.MOVES, moves)
+            if not self.config.game.no_ai:
+                moves = await self.run_ai(message.data)
+                await self.send_message(MESSAGE_TYPE.MOVES, moves)
 
     async def run_ai(self, data):
         sep_data = data.split(",")
@@ -203,7 +208,7 @@ class SCGame:
 
         screenshot = await self.get_screenshot()
 
-        return self.step(screenshot, self.finish_pos, position)
+        return self.env.step_test(screenshot, self.map.finish, position)
 
     async def get_screenshot(self):
         screenshot = self.sct.grab(self.css_window_size)
@@ -220,7 +225,7 @@ class SCGame:
 
     async def start_css(self, server_ip):
         # Copy autoexec
-        css_path = self.config['css']['path']
+        css_path = self.config.css.path
         shutil.copy2(os.path.join("assets", "autoexec_css.cfg"), os.path.join(css_path, "cstrike", "cfg", "autoexec.cfg"))
 
         # Copy maps
@@ -231,7 +236,7 @@ class SCGame:
                 shutil.copy2(os.path.join(maps_dir_path, map_path), dst)
 
         css_exe_path = os.path.join(css_path, "hl2.exe")
-        window_size = str(self.config['model']['img_size'])
+        window_size = str(self.config.model.img_size)
         print("Starting CSS...")
         self.css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", \
             "-exec", "autoexec", "+connect", server_ip, "-w", window_size, "-h", window_size])
@@ -241,7 +246,7 @@ class SCGame:
         # Runs input() in a separate thread
         await asyncio.to_thread(input)
 
-        map_start_pos = self.config['maps'][self.config['map']]['start']
+        map_start_pos = self.map.start
         await self.send_message(MESSAGE_TYPE.START, \
             f"{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]},{map_start_pos[3]}")
         
@@ -252,5 +257,9 @@ class SCGame:
             # Adjust for window border
             left += 3
             top += 26
-            img_size = self.config['model']['img_size']
+            img_size = self.config.model.img_size
             self.css_window_size = { "left": left, "top": top, "width": img_size, "height": img_size }
+    
+    async def change_map(self, map_name):
+        map_config = self.config.maps[map_name]
+        self.map = Map(map_name, map_config.start, map_config.finish)

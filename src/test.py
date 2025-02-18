@@ -1,11 +1,5 @@
-from SCGame import SCGame
+from config import get_config
+from SCEnv import SCEnv
 
-class SCEnv:
-    def __init__(self):
-        self.game = SCGame(self.step)
-
-    def step(self, screenshot, finish_pos, player_pos):
-        return f"f,1.0,0.0"
-
-if __name__ == "__main__":
-    env = SCEnv()
+config = get_config()
+SCEnv(config.infer.map)

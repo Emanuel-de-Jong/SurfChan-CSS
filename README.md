@@ -8,9 +8,10 @@
 - Download maps [here](https://github.com/OuiSURF/Surf_Maps).
 
 ### Setup
-- Install Python packages `pip install -r requirements.txt`
-- Setup server `css_server/create.md`
-- Copy `config_template.yml` and rename it to `config.yml`
+- Install Python packages `pip install -r requirements.txt`.
+- Setup server `css_server/create.md`.
+- Copy `config_template.yml` and rename it to `config.yml`.
+- Turn off Steam Overlay for CSS.
 
 ### Run
 - `./run.bat`

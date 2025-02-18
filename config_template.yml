@@ -1,7 +1,21 @@
-map: "beginner"
+# 0: Trace, 1: Debug, 2: Error
+log: 1
+
+infer:
+  map: beginner
+
+train:
+  map: beginner
+  lr: 0.0003
 
 model:
   img_size: 500
+
+env:
+  name: SurfChan
+
+game:
+  no_ai: False
 
 css:
   path: C:\[PATH_TO_STEAM]\steamapps\common\Counter-Strike Source
@@ -15,7 +29,4 @@ server:
 maps:
   beginner:
     start: [-128.0, 0.0, 372.0, 90.0]
-    finish: [
-      [-232, 2008, -152], [-24, 2008, -152],
-      [-232, 2008, -376], [-24, 2008, -376]
-    ]
+    finish: [-140, 2008, -376]

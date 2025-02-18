@@ -18,12 +18,14 @@ from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator, ConvN
 from torchrl.objectives import ClipPPOLoss
 from torchrl.objectives.value import GAE
 from torchrl.record.loggers.tensorboard import TensorboardLogger
+from config import get_config
 
 class SCTrain():
     def __init__(self):
-        device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+        self.config = get_config()
+        
+        self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
         nodes_per_layer = 256
-        lr = 0.0003
         max_grad_norm = 1.0
 
         max_steps=4500
@@ -37,7 +39,7 @@ class SCTrain():
         lmbda = 0.95
         entropy_eps = 0.0001
 
-        env = GymEnv("SurfChan")
+        env = GymEnv(self.config.env.name, self.config.train.map)
         env = TransformedEnv(env)
         env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
         env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
@@ -58,9 +60,9 @@ class SCTrain():
             num_cells=[32, 64, 64],
             kernel_sizes=[8, 4, 3],
             strides=[4, 2, 1],
-            device=device,
+            device=self.device,
         )
-        common_cnn_output = common_cnn(torch.ones(input_shape, device=device))
+        common_cnn_output = common_cnn(torch.ones(input_shape, device=self.device))
 
         common_mlp = MLP(
             in_features=common_cnn_output.shape[-1],
@@ -68,7 +70,7 @@ class SCTrain():
             activate_last_layer=True,
             out_features=512,
             num_cells=[],
-            device=device,
+            device=self.device,
         )
         common_mlp_output = common_mlp(common_cnn_output)
 
@@ -83,7 +85,7 @@ class SCTrain():
             out_features=num_outputs,
             activation_class=torch.nn.ReLU,
             num_cells=[],
-            device=device,
+            device=self.device,
         )
         policy_module = TensorDictModule(
             module=policy_net,
@@ -114,7 +116,7 @@ class SCTrain():
             in_features=common_mlp_output.shape[-1],
             out_features=1,
             num_cells=[],
-            device=device,
+            device=self.device,
         )
         value_module = ValueOperator(
             value_net,
@@ -137,14 +139,14 @@ class SCTrain():
             policy=actor,
             frames_per_batch=frames_per_batch,
             total_frames=total_frames,
-            device=device,
+            device=self.device,
             max_frames_per_traj=-1,
         )
 
         data_buffer = ReplayBuffer(
             storage=LazyTensorStorage(
                 max_size=frames_per_batch,
-                device=device
+                device=self.device
             ),
             sampler=SamplerWithoutReplacement(),
             batch_size=sub_batch_size,
@@ -155,7 +157,7 @@ class SCTrain():
             lmbda=lmbda,
             value_network=critic,
             average_gae=False,
-            device=device
+            device=self.device
         )
 
         loss_module = ClipPPOLoss(
@@ -172,7 +174,7 @@ class SCTrain():
         adv_module.set_keys(done="end-of-life", terminated="end-of-life")
         loss_module.set_keys(done="end-of-life", terminated="end-of-life")
 
-        optim = torch.optim.Adam(loss_module.parameters(), lr)
+        optim = torch.optim.Adam(loss_module.parameters(), self.config.train.lr)
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optim, total_frames // frames_per_batch, 0.0
         )
@@ -247,4 +249,4 @@ class SCTrain():
         plt.show()
 
 if __name__ == "__main__":
-    sc_train = SCTrain()
+    train = SCTrain()

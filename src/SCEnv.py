@@ -1,11 +1,17 @@
 import gymnasium as gym
 import numpy as np
+from config import get_config
+from SCGame import SCGame
 
 class SCEnv(gym.Env):
-    def __init__(self):
+    def __init__(self, map_name):
         super(SCEnv, self).__init__()
 
-        self.size = 500
+        self.config = get_config()
+
+        self.game = SCGame(self, map_name)
+
+        self.size = self.config.model.img_size
         self.key_count = 6
 
         self.action_space = gym.spaces.Dict({
@@ -15,6 +21,12 @@ class SCEnv(gym.Env):
         self.observation_space = gym.spaces.Dict({
             "pixels": gym.spaces.Box(low=0, high=255, shape=(self.size, self.size, 3), dtype=np.uint8),
         })
+    
+    async def change_map(self, map_name):
+        await self.game.change_map(map_name)
+
+    def step_test(self, screenshot, finish_pos, player_pos):
+        return f"f,1.0,0.0"
     
     def _get_obs(self):
         pass
@@ -34,4 +46,5 @@ class SCEnv(gym.Env):
         pass
 
 if __name__ == "__main__":
-    gym.register("SurfChan", SCEnv)
+    config = get_config()
+    gym.register(config.env.name, SCEnv)
