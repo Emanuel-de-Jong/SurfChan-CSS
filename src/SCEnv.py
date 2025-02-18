@@ -74,6 +74,8 @@ class SCEnv(gym.Env):
         return reward
 
     def reset(self, seed=None, options=None):
+        # can't await because reset is an override and so can't be made async
+        # self.game.reset()
         obs = self._get_obs()
         return obs, {}
     

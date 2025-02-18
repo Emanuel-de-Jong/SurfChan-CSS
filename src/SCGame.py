@@ -13,6 +13,7 @@ class MESSAGE_TYPE(Enum):
     START = 2
     TICK = 3
     MOVES = 4
+    RESET = 5
 
 class Message:
     def __init__(self, type, data):
@@ -232,6 +233,9 @@ class SCGame:
             top += 26
             img_size = self.config.model.img_size
             self.css_window_size = { "left": left, "top": top, "width": img_size, "height": img_size }
+    
+    async def reset(self):
+        await self.send_message(MESSAGE_TYPE.RESET, "")
     
     def close(self):
         if self.socket:

@@ -26,7 +26,8 @@ enum MESSAGE_TYPE {
     INIT = 1,
     START = 2,
     TICK = 3,
-    MOVES = 4
+    MOVES = 4,
+    RESET = 5
 };
 
 Socket g_socket;
@@ -35,6 +36,8 @@ bool g_isStarted = false;
 bool g_shouldRunAI = true;
 int g_tickCount = 0;
 int g_client = 0;
+float g_startAngle = 0.0;
+float g_startPos[3];
 float g_mouseX = 0.0;
 float g_mouseY = 0.0;
 float g_currentAngles[3];
@@ -98,6 +101,8 @@ public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSiz
         HandleStart(messageData);
     } else if (messageType == MOVES) {
         HandleMoves(messageData);
+    } else if (messageType == RESET) {
+        HandleReset();
     }
 }
 
@@ -147,14 +152,14 @@ void HandleStart(const char[] data) {
     int sepDataCount;
     SepString(data, ',', sepData, sepDataCount);
 
-    float startPos[3];
-    startPos[0] = StringToFloat(sepData[0]);
-    startPos[1] = StringToFloat(sepData[1]);
-    startPos[2] = StringToFloat(sepData[2]);
+    g_startPos[0] = StringToFloat(sepData[0]);
+    g_startPos[1] = StringToFloat(sepData[1]);
+    g_startPos[2] = StringToFloat(sepData[2]);
 
-    g_currentAngles[1] = StringToFloat(sepData[3]);
+    g_startAngle = StringToFloat(sepData[3]);
+    g_currentAngles[1] = g_startAngle;
 
-    TeleportEntity(g_client, startPos, g_currentAngles, NULL_VECTOR);
+    TeleportEntity(g_client, g_startPos, g_currentAngles, NULL_VECTOR);
 
     g_isStarted = true;
 }
@@ -177,6 +182,19 @@ void HandleMoves(const char[] data) {
     if (StrContains(sepData[1], "b") != -1) {
         SetTrieValue(g_buttons, "b", 1);
     }
+}
+
+void HandleReset() {
+    g_mouseX = 0.0;
+    g_mouseY = 0.0;
+    
+    ResetButtons(g_buttons);
+
+    g_currentAngles[0] = 0.0;
+    g_currentAngles[1] = g_startAngle;
+    g_currentAngles[2] = 0.0;
+
+    TeleportEntity(g_client, g_startPos, g_currentAngles, NULL_VECTOR);
 }
 
 public void OnGameFrame() {
