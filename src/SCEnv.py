@@ -20,7 +20,6 @@ from SCGame import SCGame
 class SCEnv(gym.Env):
     last_player_dist = None
     last_total_velocity = 0.0
-    frame_skip = 1
 
     def __init__(self):
         super(SCEnv, self).__init__()
@@ -97,7 +96,7 @@ class SCEnv(gym.Env):
         if self.game:
             self.game.close()
 
-def create_torchrl_env(name, num_envs=1, device="cpu", frame_skip=1, is_test=False, base_only=False):
+def create_torchrl_env(name, num_envs=1, device="cpu", is_test=False, base_only=False):
     env = None
     if base_only:
         env = _create_torchrl_base_env(name)
@@ -117,8 +116,6 @@ def create_torchrl_env(name, num_envs=1, device="cpu", frame_skip=1, is_test=Fal
             env.append_transform(SignTransform(in_keys=["reward"]))
         env.append_transform(DoubleToFloat())
         env.append_transform(VecNorm(in_keys=["pixels"]))
-
-    env.env.frame_skip = frame_skip
     
     return env
 

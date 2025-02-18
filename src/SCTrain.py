@@ -30,10 +30,9 @@ class SCTrain():
 
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
 
-        frame_skip = self.config.train.frame_skip
-        frames_per_batch = self.config.train.collector.frames_per_batch // frame_skip
+        frames_per_batch = self.config.train.collector.frames_per_batch
         total_frames = frames_per_batch * self.config.train.collector.batches
-        mini_batch_size = self.config.train.loss.mini_batch_size // frame_skip
+        mini_batch_size = self.config.train.loss.mini_batch_size
 
         should_compile = self.config.train.compile
         compile_mode = "reduce-overhead"
@@ -42,8 +41,7 @@ class SCTrain():
         self.env = create_torchrl_env(
             name=env_name,
             num_envs=self.config.train.num_envs,
-            device=self.device,
-            frame_skip=frame_skip
+            device=self.device
         )
         
         actor, critic = self.make_models()
@@ -52,8 +50,7 @@ class SCTrain():
             create_env_fn=create_torchrl_env(
                 name=env_name,
                 num_envs=self.config.train.num_envs,
-                device=self.device,
-                frame_skip=frame_skip
+                device=self.device
             ),
             policy=actor,
             frames_per_batch=frames_per_batch,
@@ -104,7 +101,6 @@ class SCTrain():
             name=env_name,
             num_envs=1,
             device=self.device,
-            frame_skip=frame_skip,
             is_test=True
         )
         test_env.eval()
@@ -165,7 +161,7 @@ class SCTrain():
 
             metrics_to_log = {}
             frames_in_batch = data.numel()
-            collected_frames += frames_in_batch * frame_skip
+            collected_frames += frames_in_batch
             pbar.update(frames_in_batch)
 
             # Get training rewards and episode lengths
@@ -214,8 +210,8 @@ class SCTrain():
             with torch.no_grad(), set_exploration_type(
                 ExplorationType.DETERMINISTIC
             ), timeit("eval"):
-                if ((i - 1) * frames_in_batch * frame_skip) // total_frames < (
-                    i * frames_in_batch * frame_skip
+                if ((i - 1) * frames_in_batch) // total_frames < (
+                    i * frames_in_batch
                 ) // total_frames:
                     actor.eval()
                     test_rewards = self.eval_model(
@@ -276,7 +272,7 @@ class SCTrain():
         )
         policy_module = TensorDictModule(
             module=policy_net,
-            in_keys=common_module.out_keys,
+            in_keys=["common_features"],
             out_keys=["logits"],
         )
 
@@ -288,7 +284,7 @@ class SCTrain():
 
         policy_module = ProbabilisticActor(
             policy_module,
-            in_keys=policy_module.in_keys,
+            in_keys=["logits"],
             spec=spec,
             distribution_class=TanhNormal,
             distribution_kwargs={
@@ -308,7 +304,7 @@ class SCTrain():
         )
         value_module = ValueOperator(
             value_net,
-            in_keys=policy_module.in_keys,
+            in_keys=["common_features"],
         )
 
         actor_critic = ActorValueOperator(
