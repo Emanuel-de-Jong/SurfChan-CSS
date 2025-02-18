@@ -4,6 +4,9 @@ from config import get_config
 from SCGame import SCGame
 
 class SCEnv(gym.Env):
+    last_player_dist = None
+    last_total_velocity = 0.0
+
     def __init__(self):
         super(SCEnv, self).__init__()
 
@@ -28,7 +31,15 @@ class SCEnv(gym.Env):
     async def change_map(self, map_name):
         await self.game.change_map(map_name)
 
-    def step_test(self, screenshot, finish_pos, player_pos):
+    def step(self, action):
+        obs = self._get_obs()
+        reward = 0
+        terminated = False
+        truncated = False
+        return obs, reward, terminated, truncated, {}
+
+    def step_test(self, screenshot, player_pos, total_velocity):
+        reward = self._calc_reward(player_pos, total_velocity)
         return f"f,1.0,0.0"
     
     def _get_obs(self):
@@ -36,12 +47,29 @@ class SCEnv(gym.Env):
             "pixels": np.zeros((self.size, self.size, 3), dtype=np.uint8)
         }
 
-    def step(self, action):
-        obs = self._get_obs()
-        reward = 0
-        terminated = False
-        truncated = False
-        return obs, reward, terminated, truncated, {}
+    def _calc_reward(self, player_pos, total_velocity):
+        reward = -0.1
+        
+        if self.last_player_dist is None:
+            self.last_player_dist = abs(self.game.map.start_pos[self.game.map.axis] - self.game.map.finish_pos[self.game.map.axis])
+        
+        player_dist = abs(player_pos[self.game.map.axis] - self.game.map.finish_pos[self.game.map.axis])
+
+        if player_dist < self.last_player_dist:
+            reward += 0.1
+        else:
+            reward -= 0.1
+        
+        self.last_player_dist = player_dist
+
+        if total_velocity > self.last_total_velocity:
+            reward += 0.1
+        else:
+            reward -= 0.1
+        
+        self.last_total_velocity = total_velocity
+
+        return reward
 
     def reset(self, seed=None, options=None):
         obs = self._get_obs()

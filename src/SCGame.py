@@ -44,10 +44,13 @@ class Message:
         return f"{self.type.value}:{self.data}"
 
 class Map:
-    def __init__(self, name, start, finish):
+    def __init__(self, name, start_angle, start_pos, finish_pos):
         self.name = name
-        self.start = start
-        self.finish = finish
+        self.start_angle = start_angle
+        self.start_pos = start_pos
+        self.finish_pos = finish_pos
+
+        self.axis = np.argmax(np.abs(self.finish_pos - self.start_pos))
 
     def full_name(self):
         return f"surf_{self.name}"
@@ -91,7 +94,7 @@ class SCGame:
     
     async def change_map(self, map_name):
         map_config = self.config.maps[map_name]
-        self.map = Map(map_name, map_config.start, map_config.finish)
+        self.map = Map(map_name, map_config.start_angle, np.array(map_config.start), np.array(map_config.finish))
 
     async def start_server(self):
         # Copy mapcycle
@@ -187,7 +190,7 @@ class SCGame:
     async def run_ai(self, data):
         sep_data = data.split(",")
 
-        position = [float(sep_data[0]), float(sep_data[1]), float(sep_data[2])]
+        position = np.array([float(sep_data[0]), float(sep_data[1]), float(sep_data[2])])
         angle = float(sep_data[3])
         velocity = [float(sep_data[4]), float(sep_data[5]), float(sep_data[6])]
         total_velocity = float(sep_data[7])
@@ -195,7 +198,7 @@ class SCGame:
 
         screenshot = await self.get_screenshot()
 
-        return self.env.step_test(screenshot, self.map.finish, position)
+        return self.env.step_test(screenshot, position, total_velocity)
 
     async def get_screenshot(self):
         screenshot = self.sct.grab(self.css_window_size)
@@ -215,9 +218,8 @@ class SCGame:
         # Runs input() in a separate thread
         await asyncio.to_thread(input)
 
-        map_start_pos = self.map.start
         await self.send_message(MESSAGE_TYPE.START, \
-            f"{map_start_pos[0]},{map_start_pos[1]},{map_start_pos[2]},{map_start_pos[3]}")
+            f"{self.map.start_pos[0]},{self.map.start_pos[1]},{self.map.start_pos[2]},{self.map.start_angle}")
         
         hwnd = win32gui.FindWindow(None, "Counter-Strike Source")
         if hwnd:
