@@ -6,7 +6,28 @@ infer:
 
 train:
   map: beginner
-  lr: 0.0003
+  num_envs: 1
+  frame_skip: 1
+  compile: False
+  collector:
+    frames_per_batch: 512
+    batches: 10
+  optim:
+    lr: 0.00025
+    eps: 0.000001
+    weight_decay: 0.0
+    max_grad_norm: 0.5
+    anneal_lr: True
+  loss:
+    gamma: 0.99
+    mini_batch_size: 126
+    ppo_epochs: 3
+    gae_lambda: 0.95
+    clip_epsilon: 0.1
+    anneal_clip_epsilon: True
+    critic_coef: 1.0
+    entropy_coef: 0.01
+    loss_critic_type: l2
 
 model:
   img_size: 500

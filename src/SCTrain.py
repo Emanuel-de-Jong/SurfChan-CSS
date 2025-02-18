@@ -1,51 +1,247 @@
 import copy
+import warnings
 from collections import defaultdict
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import torch
 from torch import nn
+from tensordict import TensorDict
 from tensordict.nn import TensorDictModule, set_composite_lp_aggregate
 from tensordict.nn.distributions import NormalParamExtractor
 from torchrl.collectors import SyncDataCollector
+from torchrl.data import LazyTensorStorage, TensorDictReplayBuffer
 from torchrl.data.tensor_specs import BoundedTensorSpec, CompositeSpec
-from torchrl.data.data_buffers import ReplayBuffer
-from torchrl.data.data_buffers.samplers import SamplerWithoutReplacement
-from torchrl.data.data_buffers.storages import LazyTensorStorage
+from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
 from torchrl.envs.utils import ExplorationType, set_exploration_type
 from torchrl.modules import ProbabilisticActor, TanhNormal, ValueOperator, ConvNet, MLP, ActorValueOperator
 from torchrl.objectives import ClipPPOLoss
 from torchrl.objectives.value import GAE
+from torchrl.record import VideoRecorder
 from torchrl.record.loggers.tensorboard import TensorboardLogger
+from torchrl._utils import compile_with_warmup, timeit
 from config import get_config
+from SCEnv import create_torchrl_env
 
 class SCTrain():
-    def __init__(self, env):
-        self.env = env
-        
+    def __init__(self):
         self.config = get_config()
         
+        torch.set_float32_matmul_precision("high")
+
         self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-        nodes_per_layer = 256
-        max_grad_norm = 1.0
 
-        max_steps=4500
-        frames_per_batch = 1000
-        total_frames = frames_per_batch * 10
+        frame_skip = self.config.train.frame_skip
+        frames_per_batch = self.config.train.collector.frames_per_batch // frame_skip
+        total_frames = frames_per_batch * self.config.train.collector.batches
+        mini_batch_size = self.config.train.loss.mini_batch_size // frame_skip
 
-        sub_batch_size = 64
-        num_epochs = 10
-        clip_epsilon = 0.2
-        gamma = 0.99
-        lmbda = 0.95
-        entropy_eps = 0.0001
+        should_compile = self.config.train.compile
+        compile_mode = "reduce-overhead"
+        
+        env_name = self.config.env.name
+        self.env = create_torchrl_env(
+            name=env_name,
+            num_envs=self.config.train.num_envs,
+            device=self.device,
+            frame_skip=frame_skip
+        )
+        
+        actor, critic = self.make_models()
 
-        input_shape = env.observation_spec["pixels"].shape
+        collector = SyncDataCollector(
+            create_env_fn=create_torchrl_env(
+                name=env_name,
+                num_envs=self.config.train.num_envs,
+                device=self.device,
+                frame_skip=frame_skip
+            ),
+            policy=actor,
+            frames_per_batch=frames_per_batch,
+            total_frames=total_frames,
+            device=self.device,
+            max_frames_per_traj=-1,
+            compile_policy={"mode": compile_mode, "warmup": 1} if compile_mode else False
+        )
 
-        num_outputs = 8
-        distribution_kwargs = {
-            "low": 0.0,
-            "high": 1.0,
-        }
+        sampler = SamplerWithoutReplacement()
+        data_buffer = TensorDictReplayBuffer(
+            storage=LazyTensorStorage(
+                frames_per_batch, compilable=should_compile, device=self.device
+            ),
+            sampler=sampler,
+            batch_size=mini_batch_size,
+            compilable=should_compile,
+        )
+
+        adv_module = GAE(
+            gamma=self.config.train.loss.gamma,
+            lmbda=self.config.train.loss.gae_lambda,
+            value_network=critic,
+            average_gae=False,
+            device=self.device,
+            vectorized=not should_compile,
+        )
+        loss_module = ClipPPOLoss(
+            actor_network=actor,
+            critic_network=critic,
+            clip_epsilon=self.config.train.loss.clip_epsilon,
+            loss_critic_type=self.config.train.loss.loss_critic_type,
+            entropy_coef=self.config.train.loss.entropy_coef,
+            critic_coef=self.config.train.loss.critic_coef,
+            normalize_advantage=True,
+        )
+
+        optim = torch.optim.Adam(
+            loss_module.parameters(),
+            lr=self.config.train.optim.lr,
+            weight_decay=self.config.train.optim.weight_decay,
+            eps=self.config.train.optim.eps,
+        )
+
+        logger = TensorboardLogger(log_dir="logs")
+
+        test_env = create_torchrl_env(
+            name=env_name,
+            num_envs=1,
+            device=self.device,
+            frame_skip=frame_skip,
+            is_test=True
+        )
+        test_env.eval()
+
+        collected_frames = 0
+        num_network_updates = torch.zeros((), dtype=torch.int64, device=self.device)
+        pbar = tqdm.tqdm(total=total_frames)
+        num_mini_batches = frames_per_batch // mini_batch_size
+        total_network_updates = (
+            (total_frames // frames_per_batch) * self.config.train.loss.ppo_epochs * num_mini_batches
+        )
+
+        def update(batch, num_network_updates):
+            optim.zero_grad(set_to_none=True)
+
+            alpha = torch.ones((), device=self.device)
+            if cfg_optim_anneal_lr:
+                alpha = 1 - (num_network_updates / total_network_updates)
+                for group in optim.param_groups:
+                    group["lr"] = cfg_optim_lr * alpha
+            if cfg_loss_anneal_clip_eps:
+                loss_module.clip_epsilon.copy_(cfg_loss_clip_epsilon * alpha)
+            num_network_updates = num_network_updates + 1
+            
+            batch = batch.to(self.device, non_blocking=True)
+
+            loss = loss_module(batch)
+            loss_sum = loss["loss_critic"] + loss["loss_objective"] + loss["loss_entropy"]
+            
+            loss_sum.backward()
+            torch.nn.utils.clip_grad_norm_(
+                loss_module.parameters(), max_norm=cfg_optim_max_grad_norm
+            )
+
+            optim.step()
+            return loss.detach().set("alpha", alpha), num_network_updates
+
+        if should_compile:
+            update = compile_with_warmup(update, mode=compile_mode, warmup=1)
+            adv_module = compile_with_warmup(adv_module, mode=compile_mode, warmup=1)
+
+        # extract cfg variables
+        cfg_loss_ppo_epochs = self.config.train.loss.ppo_epochs
+        cfg_optim_anneal_lr = self.config.train.optim.anneal_lr
+        cfg_optim_lr = self.config.train.optim.lr
+        cfg_loss_anneal_clip_eps = self.config.train.loss.anneal_clip_epsilon
+        cfg_loss_clip_epsilon = self.config.train.loss.clip_epsilon
+        cfg_optim_max_grad_norm = self.config.train.optim.max_grad_norm
+        losses = TensorDict(batch_size=[cfg_loss_ppo_epochs, num_mini_batches])
+
+        collector_iter = iter(collector)
+        total_iter = len(collector)
+        for i in range(total_iter):
+            timeit.printevery(1000, total_iter, erase=True)
+
+            with timeit("collecting"):
+                data = next(collector_iter)
+
+            metrics_to_log = {}
+            frames_in_batch = data.numel()
+            collected_frames += frames_in_batch * frame_skip
+            pbar.update(frames_in_batch)
+
+            # Get training rewards and episode lengths
+            episode_rewards = data["next", "episode_reward"][data["next", "terminated"]]
+            if len(episode_rewards) > 0:
+                episode_length = data["next", "step_count"][data["next", "terminated"]]
+                metrics_to_log.update(
+                    {
+                        "train/reward": episode_rewards.mean().item(),
+                        "train/episode_length": episode_length.sum().item()
+                        / len(episode_length),
+                    }
+                )
+
+            with timeit("training"):
+                for j in range(cfg_loss_ppo_epochs):
+                    with torch.no_grad(), timeit("adv"):
+                        data = adv_module(data)
+                        if compile_mode:
+                            data = data.clone()
+                    with timeit("rb - extend"):
+                        data_reshape = data.reshape(-1)
+                        data_buffer.extend(data_reshape)
+
+                    for k, batch in enumerate(data_buffer):
+                        with timeit("update"):
+                            loss, num_network_updates = update(
+                                batch, num_network_updates=num_network_updates
+                            )
+                        loss = loss.clone()
+                        num_network_updates = num_network_updates.clone()
+                        losses[j, k] = loss.select(
+                            "loss_critic", "loss_entropy", "loss_objective"
+                        )
+
+            losses_mean = losses.apply(lambda x: x.float().mean(), batch_size=[])
+            for key, value in losses_mean.items():
+                metrics_to_log.update({f"train/{key}": value.item()})
+            metrics_to_log.update(
+                {
+                    "train/lr": loss["alpha"] * cfg_optim_lr,
+                    "train/clip_epsilon": loss["alpha"] * cfg_loss_clip_epsilon,
+                }
+            )
+
+            with torch.no_grad(), set_exploration_type(
+                ExplorationType.DETERMINISTIC
+            ), timeit("eval"):
+                if ((i - 1) * frames_in_batch * frame_skip) // total_frames < (
+                    i * frames_in_batch * frame_skip
+                ) // total_frames:
+                    actor.eval()
+                    test_rewards = self.eval_model(
+                        actor, test_env, num_episodes=3
+                    )
+                    metrics_to_log.update(
+                        {
+                            "eval/reward": test_rewards.mean(),
+                        }
+                    )
+                    actor.train()
+            if logger:
+                metrics_to_log.update(timeit.todict(prefix="time"))
+                metrics_to_log["time/speed"] = pbar.format_dict["rate"]
+                for key, value in metrics_to_log.items():
+                    logger.log_scalar(key, value, collected_frames)
+
+            collector.update_policy_weights_()
+
+        collector.shutdown()
+        if not test_env.is_closed:
+            test_env.close()
+        
+    def make_models(self):
+        input_shape = self.env.observation_spec["pixels"].shape
+        num_outputs = self.env.action_spec["keys"].shape[0]
 
         common_cnn = ConvNet(
             activation_class=torch.nn.ReLU,
@@ -55,7 +251,6 @@ class SCTrain():
             device=self.device,
         )
         common_cnn_output = common_cnn(torch.ones(input_shape, device=self.device))
-
         common_mlp = MLP(
             in_features=common_cnn_output.shape[-1],
             activation_class=torch.nn.ReLU,
@@ -81,7 +276,7 @@ class SCTrain():
         )
         policy_module = TensorDictModule(
             module=policy_net,
-            in_keys=["common_features"],
+            in_keys=common_module.out_keys,
             out_keys=["logits"],
         )
 
@@ -90,9 +285,10 @@ class SCTrain():
                 low=0.0, high=1.0, shape=(num_outputs,), dtype=torch.float32, device=self.device
             )
         )
+
         policy_module = ProbabilisticActor(
             policy_module,
-            in_keys=["logits"],
+            in_keys=policy_module.in_keys,
             spec=spec,
             distribution_class=TanhNormal,
             distribution_kwargs={
@@ -112,10 +308,8 @@ class SCTrain():
         )
         value_module = ValueOperator(
             value_net,
-            in_keys=["common_features"],
+            in_keys=policy_module.in_keys,
         )
-        dummy_tensordict = env.reset()
-        value_module(dummy_tensordict)
 
         actor_critic = ActorValueOperator(
             common_operator=common_module,
@@ -123,119 +317,32 @@ class SCTrain():
             value_operator=value_module,
         )
 
+        with torch.no_grad():
+            td = self.env.fake_tensordict().expand(10)
+            actor_critic(td)
+            del td
+
         actor = actor_critic.get_policy_operator()
         critic = actor_critic.get_value_operator()
 
-        collector = SyncDataCollector(
-            create_env_fn=env,
-            policy=actor,
-            frames_per_batch=frames_per_batch,
-            total_frames=total_frames,
-            device=self.device,
-            max_frames_per_traj=-1,
-        )
+        return actor, critic
 
-        data_buffer = ReplayBuffer(
-            storage=LazyTensorStorage(
-                max_size=frames_per_batch,
-                device=self.device
-            ),
-            sampler=SamplerWithoutReplacement(),
-            batch_size=sub_batch_size,
-        )
-
-        adv_module = GAE(
-            gamma=gamma,
-            lmbda=lmbda,
-            value_network=critic,
-            average_gae=False,
-            device=self.device
-        )
-
-        loss_module = ClipPPOLoss(
-            actor_network=actor,
-            critic_network=critic,
-            clip_epsilon=clip_epsilon,
-            loss_critic_type="smooth_l1",
-            entropy_coef=entropy_eps,
-            entropy_bonus=bool(entropy_eps),
-            critic_coef=1.0,
-            normalize_advantage=True
-        )
-
-        adv_module.set_keys(done="end-of-life", terminated="end-of-life")
-        loss_module.set_keys(done="end-of-life", terminated="end-of-life")
-
-        optim = torch.optim.Adam(loss_module.parameters(), self.config.train.lr)
-        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            optim, total_frames // frames_per_batch, 0.0
-        )
-
-        logger = TensorboardLogger("SCLogger", "logs")
-
-        test_env = copy.deepcopy(env)
-        test_env.eval()
-
-        logs = defaultdict(list)
-        pbar = tqdm(total=total_frames)
-        eval_str = ""
-
-        for i, tensordict_data in enumerate(collector):
-            for _ in range(num_epochs):
-                adv_module(tensordict_data)
-                data_view = tensordict_data.reshape(-1)
-                data_buffer.extend(data_view.cpu())
-                for _ in range(frames_per_batch // sub_batch_size):
-                    subdata = data_buffer.sample(sub_batch_size)
-                    loss_vals = loss_module(subdata.to(device))
-                    loss_value = (
-                        loss_vals["loss_objective"]
-                        + loss_vals["loss_critic"]
-                        + loss_vals["loss_entropy"]
-                    )
-
-                    loss_value.backward()
-                    torch.nn.utils.clip_grad_norm_(loss_module.parameters(), max_grad_norm)
-                    optim.step()
-                    optim.zero_grad()
-
-            logs["reward"].append(tensordict_data["next", "reward"].mean().item())
-            pbar.update(tensordict_data.numel())
-            cum_reward_str = (
-                f"average reward={logs['reward'][-1]: 4.4f} (init={logs['reward'][0]: 4.4f})"
+    def eval_model(self, actor, test_env, num_episodes=3):
+        def dump_video(module):
+            if isinstance(module, VideoRecorder):
+                module.dump()
+        
+        test_rewards = []
+        for _ in range(num_episodes):
+            td_test = test_env.rollout(
+                policy=actor,
+                auto_reset=True,
+                auto_cast_to_device=True,
+                break_when_any_done=True,
+                max_steps=10_000_000,
             )
-            logs["step_count"].append(tensordict_data["step_count"].max().item())
-            stepcount_str = f"step count (max): {logs['step_count'][-1]}"
-            logs["lr"].append(optim.param_groups[0]["lr"])
-            lr_str = f"lr policy: {logs['lr'][-1]: 4.4f}"
-            if i % 10 == 0:
-                with set_exploration_type(ExplorationType.DETERMINISTIC), torch.no_grad():
-                    eval_rollout = env.rollout(1000, policy_module)
-                    logs["eval reward"].append(eval_rollout["next", "reward"].mean().item())
-                    logs["eval reward (sum)"].append(
-                        eval_rollout["next", "reward"].sum().item()
-                    )
-                    logs["eval step_count"].append(eval_rollout["step_count"].max().item())
-                    eval_str = (
-                        f"eval cumulative reward: {logs['eval reward (sum)'][-1]: 4.4f} "
-                        f"(init: {logs['eval reward (sum)'][0]: 4.4f}), "
-                        f"eval step-count: {logs['eval step_count'][-1]}"
-                    )
-                    del eval_rollout
-            pbar.set_description(", ".join([eval_str, cum_reward_str, stepcount_str, lr_str]))
-            scheduler.step()
-
-        plt.figure(figsize=(10, 10))
-        plt.subplot(2, 2, 1)
-        plt.plot(logs["reward"])
-        plt.title("training rewards (average)")
-        plt.subplot(2, 2, 2)
-        plt.plot(logs["step_count"])
-        plt.title("Max step count (training)")
-        plt.subplot(2, 2, 3)
-        plt.plot(logs["eval reward (sum)"])
-        plt.title("Return (test)")
-        plt.subplot(2, 2, 4)
-        plt.plot(logs["eval step_count"])
-        plt.title("Max step count (test)")
-        plt.show()
+            test_env.apply(dump_video)
+            reward = td_test["next", "episode_reward"][td_test["next", "done"]]
+            test_rewards.append(reward.cpu())
+        del td_test
+        return torch.cat(test_rewards, 0).mean()

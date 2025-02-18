@@ -1,7 +1,18 @@
 import asyncio
 import gymnasium as gym
 import numpy as np
-from torchrl.envs import TransformedEnv, StepCounter, RenameTransform, ToTensorImage, DoubleToFloat, VecNorm
+from torchrl.envs import (
+    TransformedEnv,
+    StepCounter,
+    RenameTransform,
+    ToTensorImage,
+    DoubleToFloat,
+    VecNorm,
+    ParallelEnv,
+    EnvCreator,
+    RewardSum,
+    SignTransform
+)
 from torchrl.envs.libs.gym import GymEnv
 from config import get_config
 from SCGame import SCGame
@@ -9,24 +20,27 @@ from SCGame import SCGame
 class SCEnv(gym.Env):
     last_player_dist = None
     last_total_velocity = 0.0
+    frame_skip = 1
 
     def __init__(self):
         super(SCEnv, self).__init__()
 
         self.config = get_config()
-
         self.game = SCGame(self)
 
         self.size = self.config.model.img_size
         self.key_count = 6
 
-        self.action_space = gym.spaces.Dict({
+        self.action_spec = gym.spaces.Dict({
             "keys": gym.spaces.Discrete(self.key_count),
             "mouse": gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
         })
-        self.observation_space = gym.spaces.Dict({
+        self.action_space = self.action_spec
+
+        self.observation_spec = gym.spaces.Dict({
             "pixels": gym.spaces.Box(low=0, high=255, shape=(self.size, self.size, 3), dtype=np.uint8),
         })
+        self.observation_space = self.observation_spec
     
     async def start(self, map_name):
         await self.game.start(map_name)
@@ -83,16 +97,32 @@ class SCEnv(gym.Env):
         if self.game:
             self.game.close()
 
-def create_torchrl_env():
-    config = get_config()
-    gym.register(config.env.name, lambda: SCEnv())
+def create_torchrl_env(name, num_envs=1, device="cpu", frame_skip=1, is_test=False, base_only=False):
+    env = None
+    if base_only:
+        env = _create_torchrl_base_env(name)
+    else:
+        env = ParallelEnv(
+            num_envs,
+            EnvCreator(lambda: _create_torchrl_base_env(name)),
+            serial_for_single=True,
+            device=device
+        )
+        env = TransformedEnv(env)
+        env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
+        env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
+        env.append_transform(RewardSum())
+        env.append_transform(StepCounter(max_steps=4500))
+        if not is_test:
+            env.append_transform(SignTransform(in_keys=["reward"]))
+        env.append_transform(DoubleToFloat())
+        env.append_transform(VecNorm(in_keys=["pixels"]))
 
-    env = GymEnv(config.env.name)
-    env = TransformedEnv(env)
-    env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
-    env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
-    env.append_transform(StepCounter(max_steps=10000))
-    env.append_transform(DoubleToFloat())
-    env.append_transform(VecNorm(in_keys=["pixels"]))
+    env.env.frame_skip = frame_skip
     
+    return env
+
+def _create_torchrl_base_env(name):
+    env = GymEnv(name)
+    env = TransformedEnv(env)
     return env

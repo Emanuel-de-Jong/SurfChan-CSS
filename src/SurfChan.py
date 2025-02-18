@@ -1,9 +1,10 @@
 import sys
 import asyncio
 from enum import Enum
+import gymnasium as gym
 from config import get_config
-from SCEnv import create_torchrl_env
-# from SCTrain import SCTrain
+from SCEnv import SCEnv, create_torchrl_env
+from SCTrain import SCTrain
 
 class MODE(Enum):
     PLAY = 1
@@ -19,6 +20,8 @@ class SurfChan():
         try:
             self.config = get_config()
 
+            gym.register(self.config.env.name, lambda: SCEnv())
+
             self.mode = MODE.PLAY
             if len(sys.argv) > 1:
                 mode_str = sys.argv[1].lower()
@@ -27,9 +30,9 @@ class SurfChan():
                 elif mode_str.startswith("i"):
                     self.mode = MODE.INFER
 
-            await self.create_env()
-
-            if self.mode == MODE.TRAIN:
+            if self.mode == MODE.PLAY:
+                await self.create_play()
+            elif self.mode == MODE.TRAIN:
                 self.create_train()
             elif self.mode == MODE.INFER:
                 self.create_infer()
@@ -54,16 +57,16 @@ class SurfChan():
                 [task.cancel() for task in tasks]
                 await asyncio.gather(*tasks, return_exceptions=True)
     
-    async def create_env(self):
-        self.env = create_torchrl_env()
-        if self.mode == MODE.PLAY:
-            self.env.env.game.should_run_ai = False
-        
+    async def create_play(self):
+        self.env = create_torchrl_env(
+            name=self.config.env.name,
+            base_only=True
+        )
+        self.env.env.game.should_run_ai = False
         await self.env.env.start(self.config.infer.map)
     
     def create_train(self):
-        # self.train = SCTrain(self.env)
-        return
+        self.train = SCTrain()
     
     def create_infer(self):
         return
