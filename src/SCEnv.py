@@ -4,12 +4,12 @@ from config import get_config
 from SCGame import SCGame
 
 class SCEnv(gym.Env):
-    def __init__(self, map_name):
+    def __init__(self):
         super(SCEnv, self).__init__()
 
         self.config = get_config()
 
-        self.game = SCGame(self, map_name)
+        self.game = SCGame(self)
 
         self.size = self.config.model.img_size
         self.key_count = 6
@@ -22,6 +22,9 @@ class SCEnv(gym.Env):
             "pixels": gym.spaces.Box(low=0, high=255, shape=(self.size, self.size, 3), dtype=np.uint8),
         })
     
+    async def start(self, map_name):
+        await self.game.start(map_name)
+    
     async def change_map(self, map_name):
         await self.game.change_map(map_name)
 
@@ -29,7 +32,9 @@ class SCEnv(gym.Env):
         return f"f,1.0,0.0"
     
     def _get_obs(self):
-        pass
+        return {
+            "pixels": np.zeros((self.size, self.size, 3), dtype=np.uint8)
+        }
 
     def step(self, action):
         obs = self._get_obs()
@@ -45,7 +50,3 @@ class SCEnv(gym.Env):
     def close(self):
         if self.game:
             self.game.close()
-
-if __name__ == "__main__":
-    config = get_config()
-    gym.register(config.env.name, SCEnv)

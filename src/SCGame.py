@@ -64,10 +64,8 @@ class SCGame:
     sct = mss.mss()
     css_window_size = None
 
-    def __init__(self, env, map_name):
+    def __init__(self, env):
         self.env = env
-
-        asyncio.run(self.start(map_name))
 
     async def start(self, map_name):
         try:
@@ -233,7 +231,7 @@ class SCGame:
     
     def close(self):
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-        if len(tasks) > 0:
+        if tasks:
             [task.cancel() for task in tasks]
             asyncio.run(asyncio.gather(*tasks, return_exceptions=True))
         
