@@ -1,5 +1,4 @@
 import subprocess
-import traceback
 import asyncio
 import shutil
 import os
@@ -66,20 +65,11 @@ class SCGame:
     css_window_size = None
 
     def __init__(self, env, map_name):
-        try:
-            self.env = env
+        self.env = env
 
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(self.run(map_name))
-        except KeyboardInterrupt:
-            loop.run_until_complete(self.shutdown_handler())
-        except Exception:
-            traceback.print_exc()
-        finally:
-            loop.close()
+        asyncio.run(self.start(map_name))
 
-    async def run(self, map_name):
+    async def start(self, map_name):
         try:
             self.config = get_config()
             await self.change_map(map_name)
@@ -97,25 +87,9 @@ class SCGame:
             while not self.css_process:
                 await asyncio.sleep(0.1)
 
-            asyncio.create_task(self.wait_for_start())
-
-            while True:
-                # Will show training progress later
-                await asyncio.sleep(0.1)
+            asyncio.run(self.wait_for_start())
         except asyncio.CancelledError:
             pass
-        except Exception:
-            traceback.print_exc()
-        finally:
-            if self.socket:
-                self.socket.close()
-                await self.socket.wait_closed()
-            
-            if self.server_process and self.config.server.close_on_script_close:
-                self.server_process.kill()
-            
-            if self.css_process and self.config.css.close_on_script_close:
-                self.css_process.kill()
     
     async def change_map(self, map_name):
         map_config = self.config.maps[map_name]
@@ -170,8 +144,6 @@ class SCGame:
                 await self.message_queue.put(message)
         except asyncio.CancelledError:
             pass
-        except Exception:
-            traceback.print_exc()
         finally:
             print(f"Disconnecting {addr}...")
             self.socket_writer = None
@@ -258,9 +230,19 @@ class SCGame:
             top += 26
             img_size = self.config.model.img_size
             self.css_window_size = { "left": left, "top": top, "width": img_size, "height": img_size }
-
-    async def shutdown_handler(self):
-        print("\nShutting down...")
+    
+    def close(self):
         tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-        [task.cancel() for task in tasks]
-        await asyncio.gather(*tasks, return_exceptions=True)
+        if len(tasks) > 0:
+            [task.cancel() for task in tasks]
+            asyncio.run(asyncio.gather(*tasks, return_exceptions=True))
+        
+        if self.socket:
+            self.socket.close()
+            asyncio.run(self.socket.wait_closed())
+        
+        if self.css_process and self.config.css.close_on_script_close:
+            self.css_process.kill()
+        
+        if self.server_process and self.config.server.close_on_script_close:
+            self.server_process.kill()

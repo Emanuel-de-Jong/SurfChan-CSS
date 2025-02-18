@@ -42,8 +42,9 @@ class SCEnv(gym.Env):
         obs = self._get_obs()
         return obs, {}
     
-    def close():
-        pass
+    def close(self):
+        if self.game:
+            self.game.close()
 
 if __name__ == "__main__":
     config = get_config()
