@@ -9,7 +9,7 @@ train:
   compile: False
   collector:
     frames_per_batch: 512
-    batches: 10
+    batches: 25
   optim:
     lr: 0.00025
     eps: 0.000001
@@ -18,7 +18,7 @@ train:
     anneal_lr: True
   loss:
     gamma: 0.99
-    mini_batch_size: 126
+    mini_batch_size: 128
     ppo_epochs: 3
     gae_lambda: 0.95
     clip_epsilon: 0.1

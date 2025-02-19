@@ -1,11 +1,12 @@
 **TODO**
-- fix stuttering
-- ppo model
+- fixed step timestamps
 - terminated/truncated when
     - fallen (negative reward)
     - max time/frames depleted
     - finish reached (reward)
+- infer script
 - speed up for faster training
-- 1 simple stage
+- fix stuttering
+    - fix mouseV if still needed
 - full linear map with trace points
 - multiple maps (https://chatgpt.com/share/67a9d4b2-def8-8003-b0ff-6ebd88052055)
