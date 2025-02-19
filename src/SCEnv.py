@@ -1,4 +1,3 @@
-import asyncio
 import time
 import gymnasium as gym
 import numpy as np
@@ -9,18 +8,12 @@ from torchrl.envs import (
     ToTensorImage,
     DoubleToFloat,
     VecNorm,
-    ParallelEnv,
-    EnvCreator,
-    RewardSum,
-    SignTransform
+    RewardSum
 )
 from torchrl.envs.libs.gym import GymEnv
-from tensordict import TensorDict
-import torch
 from sc_utils import run_async
 from sc_config import get_config
 from SCGame import SCGame
-from datetime import datetime
 
 class SCEnv(gym.Env):
     button_count = 6
@@ -59,7 +52,7 @@ class SCEnv(gym.Env):
         await self.game.init(map_name)
 
     def step(self, action):
-        # sec_between_step = datetime.now().microsecond / 1_000_000.0
+        # sec_between_step = time.time()
         # print(f"Seconds between step: {sec_between_step - self.last_sec_between_step}")
         # self.last_sec_between_step = sec_between_step
 

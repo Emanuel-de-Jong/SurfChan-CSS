@@ -1,5 +1,6 @@
 import os
 import shutil
+import time
 from datetime import datetime
 import tqdm
 import torch
@@ -140,7 +141,7 @@ class SCTrain():
         
         losses = TensorDict(batch_size=[cfg_loss_ppo_epochs, num_mini_batches])
 
-        training_seconds_start = datetime.now().microsecond / 1_000_000
+        training_seconds_start = time.time()
 
         collector_iter = iter(collector)
         total_iter = len(collector)
@@ -210,8 +211,8 @@ class SCTrain():
         
         pbar.close()
 
-        training_seconds = (datetime.now().microsecond / 1_000_000) - training_seconds_start
-        print(f"Training time: {training_seconds}s or {training_seconds/60}m or {training_seconds/3600}h")
+        training_seconds = time.time() - training_seconds_start
+        print(f"Training time: {training_seconds:.2f}s or {training_seconds/60:.2f}m or {training_seconds/3600:.2f}h")
 
         self.save(actor, critic, date_str)
 
