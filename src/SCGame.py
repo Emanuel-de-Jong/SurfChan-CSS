@@ -151,8 +151,9 @@ class SCGame:
         finally:
             print(f"Disconnecting {addr}...")
             self.socket_writer = None
-            writer.close()
-            await writer.wait_closed()
+            if writer is not None:
+                writer.close()
+                await writer.wait_closed()
 
     async def send_message(self, type, data):
         if not self.socket_writer or self.socket_writer.is_closing():

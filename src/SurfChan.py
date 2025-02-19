@@ -64,6 +64,7 @@ class SurfChan():
                 await asyncio.gather(*tasks, return_exceptions=True)
     
     async def create_play(self):
+        print("Mode: Play")
         self.env = create_torchrl_env(
             name=self.config.env.name,
             map=self.config.infer.map,
@@ -72,12 +73,15 @@ class SurfChan():
         self.env.env.game.should_run_ai = False
     
     async def create_train(self):
+        print("Mode: Train")
         self.train = SCTrain()
     
     async def create_infer(self):
+        print("Mode: Infer")
         return
     
     async def create_fake_infer(self):
+        print("Mode: Fake Infer")
         self.env = create_torchrl_env(
             name=self.config.env.name,
             map=self.config.infer.map,
