@@ -1,5 +1,6 @@
 import asyncio
 import threading
+import torch
 
 _background_loop = asyncio.new_event_loop()
 
@@ -13,3 +14,12 @@ _background_thread.start()
 def run_async(coro):
     future = asyncio.run_coroutine_threadsafe(coro, _background_loop)
     return future.result()
+
+torch_device = None
+def get_torch_device():
+    global torch_device
+    if torch_device is None:
+        torch_device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+        print(f"Using torch device: {torch_device}")
+    
+    return torch_device

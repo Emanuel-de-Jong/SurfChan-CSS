@@ -25,6 +25,7 @@ from torchrl.objectives.value import GAE
 from torchrl.record.loggers.tensorboard import TensorboardLogger
 from torchrl._utils import compile_with_warmup, timeit
 from sc_config import get_config, CONFIG_FILE_NAME
+from sc_utils import get_torch_device
 from SCEnv import create_torchrl_env
 
 class SCTrain():
@@ -33,8 +34,7 @@ class SCTrain():
         
         torch.set_float32_matmul_precision("high")
 
-        self.device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-        print(f"Using device: {self.device}")
+        self.device = get_torch_device()
 
         frames_per_batch = self.config.train.collector.frames_per_batch
         total_frames = frames_per_batch * self.config.train.collector.batches

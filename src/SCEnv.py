@@ -11,7 +11,7 @@ from torchrl.envs import (
     RewardSum
 )
 from torchrl.envs.libs.gym import GymEnv
-from sc_utils import run_async
+from sc_utils import run_async, get_torch_device
 from sc_config import get_config
 from SCGame import SCGame
 
@@ -123,7 +123,7 @@ class SCEnv(gym.Env):
 
 def create_torchrl_env(name, map, base_only=False):
     env = GymEnv(name)
-    env = TransformedEnv(env)
+    env = TransformedEnv(env).to(get_torch_device())
     if not base_only:
         env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
         env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
