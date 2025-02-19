@@ -88,12 +88,10 @@ class SurfChan():
             base_only=True
         )
 
-        buttons = np.zeros((self.env.env.button_count,), dtype=np.uint8)
-        buttons[0] = 1 # forward
-        mouse = np.zeros((2,), dtype=np.float32)
-        mouse[0] = 0.5 # vertical center
-        mouse[1] = 0.7 # look right
-        action = {"buttons": buttons, "mouse": mouse}
+        action = self.env.env._fake_action()
+        action[0] = 1.0 # forward
+        action[self.env.env.button_count] = 0.5 # vertical center
+        action[self.env.env.button_count + 1] = 0.7 # look right
         while not self.env.is_closed:
             await asyncio.sleep(0.034) # 30 fps
             self.env.env.step(action)

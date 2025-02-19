@@ -23,12 +23,14 @@ from SCGame import SCGame
 
 class SCEnv(gym.Env):
     button_count = 6
+    mouse_count = 2
     button_model_to_game = ["f", "b", "l", "r", "j", "c"]
 
     def __init__(self):
         super(SCEnv, self).__init__()
 
         self.config = get_config()
+        self.output_count = self.button_count + self.mouse_count
 
         self._clear_attributes()
 
@@ -41,10 +43,7 @@ class SCEnv(gym.Env):
         })
         self.observation_spec = self.observation_space
 
-        self.action_space = gym.spaces.Dict({
-            "buttons": gym.spaces.Box(low=0, high=1, shape=(self.button_count,), dtype=np.uint8),
-            "mouse": gym.spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32)
-        })
+        self.action_space = gym.spaces.Box(low=0.0, high=1.0, shape=(self.output_count, ), dtype=np.float32)
         self.action_spec = self.action_space
     
     def _clear_attributes(self):
@@ -52,6 +51,7 @@ class SCEnv(gym.Env):
         self.last_total_velocity = 0.0
         self.terminated = False
         self.truncated = False
+        self.done = False
     
     async def init(self, map_name):
         await self.game.init(map_name)
@@ -64,15 +64,16 @@ class SCEnv(gym.Env):
     def _game_step(self, action):
         game_buttons = ""
         for i in range(self.button_count):
-            game_buttons += self.button_model_to_game[i] if action["buttons"][i] > 0 else ""
+            game_buttons += self.button_model_to_game[i] if action[i] > 0.5 else ""
         
-        game_mouseH = action["mouse"][0] * 3.6 - 1.8
-        game_mouseV = action["mouse"][1] * 3.6 - 1.8
+        game_mouseH = action[self.button_count] * 3.6 - 1.8
+        game_mouseV = action[self.button_count + 1] * 3.6 - 1.8
 
-        pixels, player_pos, total_velocity, terminated, truncated = run_async(self.game.step(game_buttons, game_mouseH, game_mouseV))
+        pixels, player_pos, total_velocity, done = run_async(self.game.step(game_buttons, game_mouseH, game_mouseV))
         obs = {"pixels": pixels}
-        self.terminated = terminated
-        self.truncated = truncated
+        self.done = done
+        self.terminated = done
+        self.truncated = done
         
         return obs, player_pos, total_velocity
 
@@ -107,14 +108,15 @@ class SCEnv(gym.Env):
         return obs, {}
     
     def _fake_action(self):
-        return {"buttons": np.zeros((self.button_count,), dtype=np.uint8), "mouse": np.zeros((2,), dtype=np.float32)}
+        return np.zeros((self.output_count,), dtype=np.float32)
     
+    # TODO: Check if used
     def fake_tensordict(self):
         reward_spec = {"reward": torch.tensor(0.0)}
         done_spec = {"done": torch.tensor(False)}
 
         fake_obs = {"pixels": torch.zeros((self.size, self.size, 3), dtype=torch.uint8)}
-        fake_action = {"buttons": torch.tensor(0), "mouse": torch.zeros((2,), dtype=torch.float32)}
+        fake_action = self._fake_action()
         
         fake_tensordict = TensorDict({
             **fake_obs,
@@ -147,8 +149,8 @@ def create_torchrl_env(name, map, num_envs=1, device="cpu", is_test=False, base_
         env = TransformedEnv(env)
         env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
         env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
-        # env.append_transform(RewardSum())
-        # env.append_transform(StepCounter(max_steps=4500))
+        env.append_transform(RewardSum())
+        env.append_transform(StepCounter(max_steps=4500))
         # if not is_test:
         #     env.append_transform(SignTransform(in_keys=["reward"]))
         # env.append_transform(DoubleToFloat())

@@ -228,7 +228,7 @@ class SCGame:
         pixels = np.array(sct.grab(self.css_window_size))
         pixels = cv2.cvtColor(pixels, cv2.COLOR_RGBA2RGB)
         
-        return pixels, player_pos, total_velocity, False, False
+        return pixels, player_pos, total_velocity, False
 
     async def wait_for_start(self):
         print("Press enter to start training...")
