@@ -73,7 +73,7 @@ class SCEnv(gym.Env):
             game_buttons += self.button_model_to_game[i] if action[i] > 0.5 else ""
         
         game_mouseH = action[self.button_count] * 3.6 - 1.8
-        game_mouseV = action[self.button_count + 1] * 3.6 - 1.8
+        game_mouseV = action[self.button_count + 1] * 1.8 - 0.9
 
         pixels, player_pos, total_velocity, done = run_async(self.game.step(game_buttons, game_mouseH, game_mouseV))
         obs = {"pixels": pixels}

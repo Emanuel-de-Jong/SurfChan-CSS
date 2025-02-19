@@ -236,8 +236,8 @@ public Action OnPlayerRunCmd(
         vel[0] = 100000.0;
     }
 
-    g_currentAngles[0] = NormalizeDegree(g_currentAngles[0] + g_mouseH);
-    g_currentAngles[1] = NormalizeDegree(g_currentAngles[1] + g_mouseV);
+    g_currentAngles[0] = NormalizeHorizontal(g_currentAngles[0] + g_mouseH);
+    g_currentAngles[1] = NormalizeVertical(g_currentAngles[1] + g_mouseV);
 
     angles[0] = g_currentAngles[0];
     angles[1] = g_currentAngles[1];
@@ -247,13 +247,23 @@ public Action OnPlayerRunCmd(
     return Plugin_Changed;
 }
 
-float NormalizeDegree(float degree) {
+float NormalizeHorizontal(float degree) {
     while (degree > 180.0) {
         degree -= 360.0;
     }
 
     while (degree < -180.0) {
         degree += 360.0;
+    }
+
+    return degree;
+}
+
+float NormalizeVertical(float degree) {
+    if (degree > 90.0) {
+        degree = 90.0;
+    } else if (degree < -90.0) {
+        degree = -90.0;
     }
 
     return degree;

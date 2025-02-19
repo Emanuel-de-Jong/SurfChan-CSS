@@ -8,7 +8,6 @@
     - finish reached (reward)
 - infer script
 - fix stuttering
-    - fix mouseV if still needed
 - advanced rl techniques
     - clipped objective
     - entropy regularization
