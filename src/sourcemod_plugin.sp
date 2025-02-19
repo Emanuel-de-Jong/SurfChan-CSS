@@ -46,6 +46,8 @@ float g_mouseH = 0.0;
 float g_mouseV = 0.0;
 float g_currentAngles[3];
 Handle g_buttons;
+int g_buttonCount = 6;
+char g_buttonTypes[6][2] = {"f", "b", "l", "r", "j", "c"};
 
 public void OnPluginStart() {
     g_buttons = CreateTrie();
@@ -60,8 +62,9 @@ public void OnPluginStart() {
 }
 
 void ResetButtons(Handle& buttons) {
-    SetTrieValue(buttons, "f", 0);
-    SetTrieValue(buttons, "b", 0);
+    for (int i = 0; i < g_buttonCount; i++) {
+        SetTrieValue(buttons, g_buttonTypes[i], 0);
+    }
 }
 
 public Action OnPlayerSpawn(Event event, const char[] name, bool dontBroadcast) {
@@ -100,7 +103,7 @@ public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSiz
     }
 
     if (messageType == INIT) {
-        HandleInit(messageData);
+        HandleInit();
     } else if (messageType == START) {
         HandleStart(messageData);
     } else if (messageType == STEP) {
@@ -144,7 +147,7 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
     }
 }
 
-void HandleInit(const char[] data) {
+void HandleInit() {
     char ipStr[32];
     int ip = GetConVarInt(FindConVar("hostip"));
     Format(ipStr, sizeof(ipStr), "%d.%d.%d.%d",
@@ -182,11 +185,11 @@ void HandleStep(const char[] data) {
     g_mouseV = StringToFloat(sepData[3]);
 
     ResetButtons(g_buttons);
-    if (StrContains(sepData[1], "f") != -1) {
-        SetTrieValue(g_buttons, "f", 1);
-    }
-    if (StrContains(sepData[1], "b") != -1) {
-        SetTrieValue(g_buttons, "b", 1);
+
+    for (int i = 0; i < g_buttonCount; i++) {
+        if (StrContains(sepData[1], g_buttonTypes[i]) != -1) {
+            SetTrieValue(g_buttons, g_buttonTypes[i], 1);
+        }
     }
 
     g_actionState = WAITING;
@@ -234,6 +237,44 @@ public Action OnPlayerRunCmd(
     GetTrieValue(g_buttons, "f", isF);
     if (isF == 1) {
         vel[0] = 100000.0;
+    }
+
+    int isB = 0;
+    GetTrieValue(g_buttons, "b", isB);
+    if (isB == 1) {
+        if (isF == 0) {
+            vel[0] = -100000.0;
+        } else {
+            vel[0] = 0.0;
+        }
+    }
+
+    int isL = 0;
+    GetTrieValue(g_buttons, "l", isL);
+    if (isL == 1) {
+        vel[1] = 100000.0;
+    }
+
+    int isR = 0;
+    GetTrieValue(g_buttons, "r", isR);
+    if (isR == 1) {
+        if (isL == 0) {
+            vel[1] = -100000.0;
+        } else {
+            vel[1] = 0.0;
+        }
+    }
+    
+    int isJ = 0;
+    GetTrieValue(g_buttons, "j", isJ);
+    if (isJ == 1) {
+        buttons |= IN_JUMP;
+    }
+
+    int isC = 0;
+    GetTrieValue(g_buttons, "c", isC);
+    if (isC == 1) {
+        buttons |= IN_DUCK;
     }
 
     g_currentAngles[0] = NormalizeHorizontal(g_currentAngles[0] + g_mouseH);
