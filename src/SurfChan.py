@@ -1,6 +1,7 @@
 import sys
 import asyncio
 from enum import Enum
+import numpy as np
 import gymnasium as gym
 from sc_config import get_config
 from SCEnv import SCEnv, create_torchrl_env
@@ -10,6 +11,7 @@ class MODE(Enum):
     PLAY = 1
     TRAIN = 2
     INFER = 3
+    FAKE_INFER = 4
 
 class SurfChan():
     env = None
@@ -29,13 +31,17 @@ class SurfChan():
                     self.mode = MODE.TRAIN
                 elif mode_str.startswith("i"):
                     self.mode = MODE.INFER
+                elif mode_str.startswith("f"):
+                    self.mode = MODE.FAKE_INFER
 
             if self.mode == MODE.PLAY:
                 await self.create_play()
             elif self.mode == MODE.TRAIN:
-                self.create_train()
+                await self.create_train()
             elif self.mode == MODE.INFER:
-                self.create_infer()
+                await self.create_infer()
+            elif self.mode == MODE.FAKE_INFER:
+                await self.create_fake_infer()
             
             while True:
                 await asyncio.sleep(1)
@@ -65,11 +71,28 @@ class SurfChan():
         )
         self.env.env.game.should_run_ai = False
     
-    def create_train(self):
+    async def create_train(self):
         self.train = SCTrain()
     
-    def create_infer(self):
+    async def create_infer(self):
         return
+    
+    async def create_fake_infer(self):
+        self.env = create_torchrl_env(
+            name=self.config.env.name,
+            map=self.config.infer.map,
+            base_only=True
+        )
+
+        buttons = np.zeros((self.env.env.button_count,), dtype=np.uint8)
+        buttons[0] = 1 # forward
+        mouse = np.zeros((2,), dtype=np.float32)
+        mouse[0] = 0.5 # vertical center
+        mouse[1] = 0.7 # look right
+        action = {"buttons": buttons, "mouse": mouse}
+        while True:
+            await asyncio.sleep(0.034) # 30 fps
+            await asyncio.create_task(self.env.env.step(action))
 
 if __name__ == "__main__":
     surfchan = SurfChan()

@@ -38,12 +38,12 @@ Socket g_socket;
 bool g_isConnected = false;
 bool g_isStarted = false;
 ACTION_STATE g_actionState = REST;
-bool g_shouldRunAI = true;
+bool g_shouldRunAI = false;
 int g_client = 0;
 float g_startAngle = 0.0;
 float g_startPos[3];
-float g_mouseX = 0.0;
-float g_mouseY = 0.0;
+float g_mouseH = 0.0;
+float g_mouseV = 0.0;
 float g_currentAngles[3];
 Handle g_buttons;
 
@@ -176,8 +176,8 @@ void HandleStep(const char[] data) {
     g_shouldRunAI = StringToInt(sepData[0]) == 1;
     if (!g_shouldRunAI) return;
 
-    g_mouseX = StringToFloat(sepData[2]);
-    g_mouseY = StringToFloat(sepData[3]);
+    g_mouseH = StringToFloat(sepData[2]);
+    g_mouseV = StringToFloat(sepData[3]);
 
     ResetButtons(g_buttons);
     if (StrContains(sepData[1], "f") != -1) {
@@ -191,8 +191,8 @@ void HandleStep(const char[] data) {
 }
 
 void HandleReset() {
-    g_mouseX = 0.0;
-    g_mouseY = 0.0;
+    g_mouseH = 0.0;
+    g_mouseV = 0.0;
     
     ResetButtons(g_buttons);
 
@@ -234,8 +234,8 @@ public Action OnPlayerRunCmd(
         vel[0] = 100000.0;
     }
 
-    g_currentAngles[0] = NormalizeDegree(g_currentAngles[0] + g_mouseY);
-    g_currentAngles[1] = NormalizeDegree(g_currentAngles[1] + g_mouseX);
+    g_currentAngles[0] = NormalizeDegree(g_currentAngles[0] + g_mouseH);
+    g_currentAngles[1] = NormalizeDegree(g_currentAngles[1] + g_mouseV);
 
     angles[0] = g_currentAngles[0];
     angles[1] = g_currentAngles[1];

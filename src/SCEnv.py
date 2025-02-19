@@ -66,10 +66,10 @@ class SCEnv(gym.Env):
         for i in range(self.button_count):
             game_buttons += self.button_model_to_game[i] if action["buttons"][i] > 0 else ""
         
-        game_mouseX = action["mouse"][0] * 360 - 180
-        game_mouseY = action["mouse"][1] * 360 - 180
+        game_mouseH = action["mouse"][0] * 3.6 - 1.8
+        game_mouseV = action["mouse"][1] * 3.6 - 1.8
 
-        pixels, player_pos, total_velocity, terminated, truncated = run_async(self.game.step(game_buttons, game_mouseX, game_mouseY))
+        pixels, player_pos, total_velocity, terminated, truncated = run_async(self.game.step(game_buttons, game_mouseH, game_mouseV))
         obs = {"pixels": pixels}
         self.terminated = terminated
         self.truncated = truncated
