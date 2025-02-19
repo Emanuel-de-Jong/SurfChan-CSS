@@ -6,7 +6,7 @@ import numpy as np
 import win32gui
 import mss
 from enum import Enum
-from config import get_config
+from sc_config import get_config
 
 class MESSAGE_TYPE(Enum):
     INIT = 1
@@ -74,6 +74,7 @@ class SCGame:
         self.config = get_config()
 
     async def start(self, map_name):
+        print(f"Starting game with map {map_name}...")
         try:
             await self.change_map(map_name)
 
@@ -237,7 +238,7 @@ class SCGame:
     async def reset(self):
         await self.send_message(MESSAGE_TYPE.RESET, "")
     
-    def get_game_info(self, keys, mouseX, mouseY):
+    async def get_game_info(self, keys, mouseX, mouseY):
         img_size = self.config.model.img_size
         return np.zeros((img_size, img_size, 3), dtype=np.uint8), \
             np.zeros((3,), dtype=np.float32), \

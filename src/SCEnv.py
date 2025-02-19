@@ -17,7 +17,8 @@ from torchrl.envs import (
 from torchrl.envs.libs.gym import GymEnv
 from tensordict import TensorDict
 import torch
-from config import get_config
+from sc_utils import run_async
+from sc_config import get_config
 from SCGame import SCGame
 
 class SCEnv(gym.Env):
@@ -41,8 +42,8 @@ class SCEnv(gym.Env):
         self.observation_spec = self.observation_space
 
         self.action_space = gym.spaces.Dict({
-            "keys": gym.spaces.Discrete(self.key_count),
-            "mouse": gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
+            "keys": gym.spaces.Box(low=0, high=1, shape=(self.key_count,), dtype=np.uint8),
+            "mouse": gym.spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32)
         })
         self.action_spec = self.action_space
     
@@ -68,7 +69,7 @@ class SCEnv(gym.Env):
         game_mouseX = action["mouse"][0] * 360 - 180
         game_mouseY = action["mouse"][1] * 360 - 180
 
-        screenshot, player_pos, total_velocity, terminated, truncated = self.game.get_game_info(game_keys, game_mouseX, game_mouseY)
+        screenshot, player_pos, total_velocity, terminated, truncated = run_async(self.game.get_game_info(game_keys, game_mouseX, game_mouseY))
         obs = {"pixels": screenshot}
         self.terminated = terminated
         self.truncated = truncated
@@ -100,9 +101,9 @@ class SCEnv(gym.Env):
         return reward
 
     def reset(self, seed=None, options=None):
-        asyncio.create_task(self.game.reset())
+        run_async(self.game.reset())
         self._clear_attributes()
-        obs, player_pos, total_velocity = self._get_game_info(self._fake_action())
+        obs, player_pos, total_velocity = run_async(self._get_game_info(self._fake_action()))
         return obs, {}
     
     def _fake_action(self):
@@ -146,11 +147,11 @@ def create_torchrl_env(name, map, num_envs=1, device="cpu", is_test=False, base_
         env = TransformedEnv(env)
         env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
         env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
-        env.append_transform(RewardSum())
-        env.append_transform(StepCounter(max_steps=4500))
-        if not is_test:
-            env.append_transform(SignTransform(in_keys=["reward"]))
-        env.append_transform(DoubleToFloat())
+        # env.append_transform(RewardSum())
+        # env.append_transform(StepCounter(max_steps=4500))
+        # if not is_test:
+        #     env.append_transform(SignTransform(in_keys=["reward"]))
+        # env.append_transform(DoubleToFloat())
         env.append_transform(VecNorm(in_keys=["pixels"]))
     
     return env
@@ -159,7 +160,6 @@ def _create_torchrl_base_env(name, map):
     env = GymEnv(name)
     env = TransformedEnv(env)
 
-    asyncio.create_task(env.env.start(map))
-    time.sleep(3)
+    run_async(env.env.start(map))
 
     return env

@@ -21,7 +21,7 @@ from torchrl.objectives.value import GAE
 from torchrl.record import VideoRecorder
 from torchrl.record.loggers.tensorboard import TensorboardLogger
 from torchrl._utils import compile_with_warmup, timeit
-from config import get_config
+from sc_config import get_config
 from SCEnv import create_torchrl_env
 
 class SCTrain():

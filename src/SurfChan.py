@@ -2,7 +2,7 @@ import sys
 import asyncio
 from enum import Enum
 import gymnasium as gym
-from config import get_config
+from sc_config import get_config
 from SCEnv import SCEnv, create_torchrl_env
 from SCTrain import SCTrain
 
