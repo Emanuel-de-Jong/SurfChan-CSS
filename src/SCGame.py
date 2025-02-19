@@ -2,6 +2,7 @@ import subprocess
 import asyncio
 import shutil
 import os
+import sys
 import numpy as np
 import win32gui
 import mss
@@ -225,7 +226,18 @@ class SCGame:
         total_velocity = float(sep_data[7])
         is_crouch = sep_data[8]
 
-        pixels = np.array(sct.grab(self.css_window_size))
+        pixels = None
+        max_tries = 5
+        tries = 0
+        while pixels is None:
+            try:
+                pixels = np.array(sct.grab(self.css_window_size))
+            except mss.exception.ScreenShotError as e:
+                print(e)
+                tries += 1
+                if tries > max_tries:
+                    sys.exit(1)
+        
         pixels = cv2.cvtColor(pixels, cv2.COLOR_RGBA2RGB)
         
         return pixels, player_pos, total_velocity, False

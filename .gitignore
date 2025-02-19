@@ -1,8 +1,9 @@
 # Config
 config_user.yml
 
-# Logs
-logs/
+# Results
+results/
+results/logs/
 
 # Server
 css_server/server/*

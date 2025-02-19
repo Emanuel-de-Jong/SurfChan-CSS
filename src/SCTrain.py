@@ -1,3 +1,5 @@
+import os
+from datetime import datetime
 import tqdm
 import torch
 from tensordict import TensorDict
@@ -88,7 +90,7 @@ class SCTrain():
             eps=self.config.train.optim.eps,
         )
 
-        logger = TensorboardLogger(exp_name="SurfChan", log_dir="logs")
+        logger = TensorboardLogger(exp_name="logs", log_dir=self.config.model.results_dir)
 
         collected_frames = 0
         num_network_updates = torch.zeros((), dtype=torch.int64, device=self.device)
@@ -201,6 +203,8 @@ class SCTrain():
                     logger.log_scalar(key, value, collected_frames)
 
             collector.update_policy_weights_()
+        
+        self.save(actor, critic)
 
         collector.shutdown()
         
@@ -294,6 +298,15 @@ class SCTrain():
         critic = actor_critic.get_value_operator()
 
         return actor, critic
+    
+    def save(self, actor, critic):
+        results_dir = self.config.model.results_dir
+        if not os.path.exists(results_dir):
+            os.makedirs(results_dir)
+        
+        current_date = datetime.now().strftime("%d-%m_%H-%M")
+        torch.save(actor.state_dict(), os.path.join(results_dir, f"actor_{current_date}.pth"))
+        torch.save(critic.state_dict(), os.path.join(results_dir, f"critic_{current_date}.pth"))
 
     def close(self):
         pass
