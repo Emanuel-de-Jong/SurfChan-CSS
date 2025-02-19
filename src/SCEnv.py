@@ -22,8 +22,8 @@ from sc_config import get_config
 from SCGame import SCGame
 
 class SCEnv(gym.Env):
-    key_count = 6
-    key_model_to_game = ["f", "b", "l", "r", "j", "c"]
+    button_count = 6
+    button_model_to_game = ["f", "b", "l", "r", "j", "c"]
 
     def __init__(self):
         super(SCEnv, self).__init__()
@@ -42,7 +42,7 @@ class SCEnv(gym.Env):
         self.observation_spec = self.observation_space
 
         self.action_space = gym.spaces.Dict({
-            "keys": gym.spaces.Box(low=0, high=1, shape=(self.key_count,), dtype=np.uint8),
+            "buttons": gym.spaces.Box(low=0, high=1, shape=(self.button_count,), dtype=np.uint8),
             "mouse": gym.spaces.Box(low=0.0, high=1.0, shape=(2,), dtype=np.float32)
         })
         self.action_spec = self.action_space
@@ -53,24 +53,24 @@ class SCEnv(gym.Env):
         self.terminated = False
         self.truncated = False
     
-    async def start(self, map_name):
-        await self.game.start(map_name)
+    async def init(self, map_name):
+        await self.game.init(map_name)
 
     def step(self, action):
-        obs, player_pos, total_velocity = self._get_game_info(action)
+        obs, player_pos, total_velocity = self._game_step(action)
         reward = self._calc_reward(player_pos, total_velocity)
         return obs, reward, self.terminated, self.truncated, {}
     
-    def _get_game_info(self, action):
-        game_keys = ""
-        for i in range(self.key_count):
-            game_keys += self.key_model_to_game[i] if action["keys"][i] > 0 else ""
+    def _game_step(self, action):
+        game_buttons = ""
+        for i in range(self.button_count):
+            game_buttons += self.button_model_to_game[i] if action["buttons"][i] > 0 else ""
         
         game_mouseX = action["mouse"][0] * 360 - 180
         game_mouseY = action["mouse"][1] * 360 - 180
 
-        screenshot, player_pos, total_velocity, terminated, truncated = run_async(self.game.get_game_info(game_keys, game_mouseX, game_mouseY))
-        obs = {"pixels": screenshot}
+        pixels, player_pos, total_velocity, terminated, truncated = run_async(self.game.step(game_buttons, game_mouseX, game_mouseY))
+        obs = {"pixels": pixels}
         self.terminated = terminated
         self.truncated = truncated
         
@@ -103,18 +103,18 @@ class SCEnv(gym.Env):
     def reset(self, seed=None, options=None):
         run_async(self.game.reset())
         self._clear_attributes()
-        obs, player_pos, total_velocity = run_async(self._get_game_info(self._fake_action()))
+        obs, player_pos, total_velocity = run_async(self._game_step(self._fake_action()))
         return obs, {}
     
     def _fake_action(self):
-        return {"keys": np.zeros((self.key_count,), dtype=np.uint8), "mouse": np.zeros((2,), dtype=np.float32)}
+        return {"buttons": np.zeros((self.button_count,), dtype=np.uint8), "mouse": np.zeros((2,), dtype=np.float32)}
     
     def fake_tensordict(self):
         reward_spec = {"reward": torch.tensor(0.0)}
         done_spec = {"done": torch.tensor(False)}
 
         fake_obs = {"pixels": torch.zeros((self.size, self.size, 3), dtype=torch.uint8)}
-        fake_action = {"keys": torch.tensor(0), "mouse": torch.zeros((2,), dtype=torch.float32)}
+        fake_action = {"buttons": torch.tensor(0), "mouse": torch.zeros((2,), dtype=torch.float32)}
         
         fake_tensordict = TensorDict({
             **fake_obs,
@@ -160,6 +160,6 @@ def _create_torchrl_base_env(name, map):
     env = GymEnv(name)
     env = TransformedEnv(env)
 
-    run_async(env.env.start(map))
+    run_async(env.env.init(map))
 
     return env

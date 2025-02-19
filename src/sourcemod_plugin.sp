@@ -13,7 +13,6 @@ public Plugin myinfo = {
 
 #define SERVER_HOST "127.0.0.1"
 #define SERVER_PORT 27015
-#define TICKS_PER_MESSAGE 1
 #define STRING_SIZE 512
 #define STRING_SIZE_BIG 2250
 #define STRING_SIZE_VERY_BIG 8000
@@ -25,16 +24,21 @@ public Plugin myinfo = {
 enum MESSAGE_TYPE {
     INIT = 1,
     START = 2,
-    TICK = 3,
-    MOVES = 4,
-    RESET = 5
+    STEP = 3,
+    RESET = 4
+};
+
+enum ACTION_STATE {
+    REST = 1,
+    WAITING = 2,
+    REGISTERED = 1
 };
 
 Socket g_socket;
 bool g_isConnected = false;
 bool g_isStarted = false;
+ACTION_STATE g_actionState = REST;
 bool g_shouldRunAI = true;
-int g_tickCount = 0;
 int g_client = 0;
 float g_startAngle = 0.0;
 float g_startPos[3];
@@ -99,8 +103,8 @@ public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSiz
         HandleInit(messageData);
     } else if (messageType == START) {
         HandleStart(messageData);
-    } else if (messageType == MOVES) {
-        HandleMoves(messageData);
+    } else if (messageType == STEP) {
+        HandleStep(messageData);
     } else if (messageType == RESET) {
         HandleReset();
     }
@@ -164,7 +168,7 @@ void HandleStart(const char[] data) {
     g_isStarted = true;
 }
 
-void HandleMoves(const char[] data) {
+void HandleStep(const char[] data) {
     char sepData[MAX_STRING_SEP_BIG][STRING_SIZE_BIG];
     int sepDataCount;
     SepStringBig(data, ',', sepData, sepDataCount);
@@ -182,6 +186,8 @@ void HandleMoves(const char[] data) {
     if (StrContains(sepData[1], "b") != -1) {
         SetTrieValue(g_buttons, "b", 1);
     }
+
+    g_actionState = WAITING;
 }
 
 void HandleReset() {
@@ -195,36 +201,6 @@ void HandleReset() {
     g_currentAngles[2] = 0.0;
 
     TeleportEntity(g_client, g_startPos, g_currentAngles, NULL_VECTOR);
-}
-
-public void OnGameFrame() {
-    if (!g_isConnected || !g_isStarted) return;
-
-    g_tickCount++;
-    if (g_tickCount < TICKS_PER_MESSAGE) return;
-    g_tickCount = 0;
-
-    float position[3];
-    GetEntPropVector(g_client, Prop_Send, "m_vecOrigin", position);
-
-    float velocity[3];
-    GetEntPropVector(g_client, Prop_Data, "m_vecVelocity", velocity);
-
-    float totalVelocity = SquareRoot(velocity[0] * velocity[0] +
-        velocity[1] * velocity[1] +
-        velocity[2] * velocity[2]);
-
-    int isCrouch = 0;
-    if (GetEntProp(g_client, Prop_Send, "m_fFlags") & FL_DUCKING) {
-        isCrouch = 1;
-    }
-
-    char messageStr[STRING_SIZE_VERY_BIG];
-    Format(messageStr, sizeof(messageStr), "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d",
-        position[0], position[1], position[2], g_currentAngles[1],
-        velocity[0], velocity[1], velocity[2], totalVelocity, isCrouch);
-
-    SendMessage(TICK, messageStr);
 }
 
 public Action OnPlayerRunCmd(
@@ -279,6 +255,39 @@ float NormalizeDegree(float degree) {
     }
 
     return degree;
+}
+
+public void OnGameFrame() {
+    if (!g_isConnected || !g_isStarted || g_actionState == REST) return;
+
+    if (g_actionState == WAITING) {
+        g_actionState = REGISTERED;
+        return;
+    }
+    
+    g_actionState = REST;
+
+    float player_pos[3];
+    GetEntPropVector(g_client, Prop_Send, "m_vecOrigin", player_pos);
+
+    float velocity[3];
+    GetEntPropVector(g_client, Prop_Data, "m_vecVelocity", velocity);
+
+    float totalVelocity = SquareRoot(velocity[0] * velocity[0] +
+        velocity[1] * velocity[1] +
+        velocity[2] * velocity[2]);
+
+    int isCrouch = 0;
+    if (GetEntProp(g_client, Prop_Send, "m_fFlags") & FL_DUCKING) {
+        isCrouch = 1;
+    }
+
+    char messageStr[STRING_SIZE_VERY_BIG];
+    Format(messageStr, sizeof(messageStr), "%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%.2f,%d",
+        player_pos[0], player_pos[1], player_pos[2], g_currentAngles[1],
+        velocity[0], velocity[1], velocity[2], totalVelocity, isCrouch);
+
+    SendMessage(STEP, messageStr);
 }
 
 void SepString(const char[] str, const char separator, char sepData[MAX_STRING_SEP][STRING_SIZE], int &sepCount) {

@@ -243,7 +243,7 @@ class SCTrain():
         
     def make_models(self):
         input_shape = self.env.observation_spec["pixels"].shape
-        num_outputs = self.env.action_spec["keys"].n
+        num_outputs = self.env.action_spec["buttons"].shape[0]
 
         common_cnn = ConvNet(
             activation_class=torch.nn.ReLU,

@@ -4,9 +4,6 @@ config.yml
 # Logs
 logs/
 
-# Testing
-screenshot.png
-
 # Server
 css_server/server/*
 
