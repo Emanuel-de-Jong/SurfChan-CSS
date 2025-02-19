@@ -1,12 +1,17 @@
 **TODO**
 - fixed step timestamps
+- speed up for faster training
 - terminated/truncated when
     - fallen (negative reward)
     - max time/frames depleted
     - finish reached (reward)
 - infer script
-- speed up for faster training
 - fix stuttering
     - fix mouseV if still needed
+- advanced rl techniques
+    - clipped objective
+    - entropy regularization
+    - LSTM/GRU layer
+    - frame stacking/short memory
 - full linear map with trace points
 - multiple maps (https://chatgpt.com/share/67a9d4b2-def8-8003-b0ff-6ebd88052055)

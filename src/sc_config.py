@@ -1,6 +1,7 @@
 import yaml
 
 _CONFIG_FILE_NAME = "config.yml"
+_CONFIG_USER_FILE_NAME = "config_user.yml"
 
 _config = None
 
@@ -31,11 +32,23 @@ def get_config():
     global _config
 
     if _config is None:
-        with open(_CONFIG_FILE_NAME, "r") as config_file:
-            config_dict = yaml.safe_load(config_file)
+        with open(_CONFIG_FILE_NAME, "r") as file:
+            config_dict = yaml.safe_load(file)
+        with open(_CONFIG_USER_FILE_NAME, "r") as file:
+            config_user_dict = yaml.safe_load(file)
+        
+        config_dict = _merge_dicts(config_dict, config_user_dict)
         _config = _Config(config_dict)
 
     return _config
+
+def _merge_dicts(dict1, dict2):
+    for key, val in dict2.items():
+        if key in dict1 and isinstance(val, dict) and isinstance(dict1[key], dict):
+            _merge_dicts(dict1[key], val)
+        else:
+            dict1[key] = val
+    return dict1
 
 if __name__ == "__main__":
     config = get_config()
