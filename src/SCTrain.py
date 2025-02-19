@@ -90,7 +90,8 @@ class SCTrain():
             eps=self.config.train.optim.eps,
         )
 
-        logger = TensorboardLogger(exp_name="logs", log_dir=self.config.model.results_dir)
+        date_str = datetime.now().strftime("%d-%m_%H-%M")
+        logger = TensorboardLogger(exp_name=date_str, log_dir=f"{self.config.model.results_dir}/logs")
 
         collected_frames = 0
         num_network_updates = torch.zeros((), dtype=torch.int64, device=self.device)
@@ -206,7 +207,7 @@ class SCTrain():
         
         pbar.close()
 
-        self.save(actor, critic)
+        self.save(actor, critic, date_str)
 
         collector.shutdown()
         
@@ -301,15 +302,14 @@ class SCTrain():
 
         return actor, critic
     
-    def save(self, actor, critic):
+    def save(self, actor, critic, date_str):
         results_dir = self.config.model.results_dir
         if not os.path.exists(results_dir):
             os.makedirs(results_dir)
         
-        current_date = datetime.now().strftime("%d-%m_%H-%M")
         print("Saving models...")
-        torch.save(actor.state_dict(), os.path.join(results_dir, f"{current_date}_actor.pth"))
-        torch.save(critic.state_dict(), os.path.join(results_dir, f"{current_date}_critic.pth"))
+        torch.save(actor.state_dict(), os.path.join(results_dir, f"{date_str}_actor.pth"))
+        torch.save(critic.state_dict(), os.path.join(results_dir, f"{date_str}_critic.pth"))
 
     def close(self):
         pass
