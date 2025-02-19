@@ -5,6 +5,7 @@ import os
 import numpy as np
 import win32gui
 import mss
+import cv2
 from enum import Enum
 from sc_config import get_config
 
@@ -66,7 +67,6 @@ class SCGame:
     css_process = None
     last_message = None
     should_run_ai = True
-    sct = mss.mss()
     css_window_size = None
 
     def __init__(self, env):
@@ -184,7 +184,10 @@ class SCGame:
         while not self.last_message or self.last_message.type != message_type:
             await asyncio.sleep(0.01)
         
-        return self.last_message.data
+        data = self.last_message.data
+        self.last_message = None
+        
+        return data
 
     async def init_css(self, server_ip):
         # Copy autoexec
@@ -210,8 +213,10 @@ class SCGame:
             message_data = f'1,{buttons},{mouseH},{mouseV}'
         
         await self.send_message(MESSAGE_TYPE.STEP, message_data)
-        data = await self.wait_for_message(MESSAGE_TYPE.STEP)
 
+        sct = mss.mss()
+
+        data = await self.wait_for_message(MESSAGE_TYPE.STEP)
         sep_data = data.split(",")
 
         player_pos = np.array([float(sep_data[0]), float(sep_data[1]), float(sep_data[2])])
@@ -220,7 +225,8 @@ class SCGame:
         total_velocity = float(sep_data[7])
         is_crouch = sep_data[8]
 
-        pixels = await np.array(self.sct.grab(self.css_window_size))
+        pixels = np.array(sct.grab(self.css_window_size))
+        pixels = cv2.cvtColor(pixels, cv2.COLOR_RGBA2RGB)
         
         return pixels, player_pos, total_velocity, False, False
 

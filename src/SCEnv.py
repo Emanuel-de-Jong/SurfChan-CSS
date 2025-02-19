@@ -103,7 +103,7 @@ class SCEnv(gym.Env):
     def reset(self, seed=None, options=None):
         run_async(self.game.reset())
         self._clear_attributes()
-        obs, player_pos, total_velocity = run_async(self._game_step(self._fake_action()))
+        obs, player_pos, total_velocity = self._game_step(self._fake_action())
         return obs, {}
     
     def _fake_action(self):

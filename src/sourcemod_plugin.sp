@@ -31,7 +31,7 @@ enum MESSAGE_TYPE {
 enum ACTION_STATE {
     REST = 1,
     WAITING = 2,
-    REGISTERED = 1
+    REGISTERED = 3
 };
 
 Socket g_socket;
@@ -139,7 +139,9 @@ bool DecodeMessage(const char[] messageStr, MESSAGE_TYPE &messageType, char[] me
 void SendMessage(MESSAGE_TYPE type, const char[] data) {
     char message[STRING_SIZE_VERY_BIG];
     Format(message, sizeof(message), "%d:%s", type, data);
-    if (g_isConnected) g_socket.Send(message);
+    if (g_isConnected) {
+        g_socket.Send(message);
+    }
 }
 
 void HandleInit(const char[] data) {
