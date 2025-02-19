@@ -81,8 +81,8 @@ class SurfChan():
 
         action = self.env.env._fake_action()
         action[0] = 1.0 # forward
-        action[self.env.env.button_count] = 0.5 # vertical center
-        action[self.env.env.button_count + 1] = 0.7 # look right
+        action[self.env.env.button_count] = 0.7 # look right
+        action[self.env.env.button_count + 1] = 0.5 # vertical center
         while not self.env.is_closed:
             await asyncio.sleep(0.034) # 30 fps
             self.env.env.step(action)

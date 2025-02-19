@@ -277,8 +277,8 @@ public Action OnPlayerRunCmd(
         buttons |= IN_DUCK;
     }
 
-    g_currentAngles[0] = NormalizeHorizontal(g_currentAngles[0] + g_mouseH);
-    g_currentAngles[1] = NormalizeVertical(g_currentAngles[1] + g_mouseV);
+    g_currentAngles[0] = NormalizeVertical(g_currentAngles[0] - g_mouseV);
+    g_currentAngles[1] = NormalizeHorizontal(g_currentAngles[1] - g_mouseH);
 
     angles[0] = g_currentAngles[0];
     angles[1] = g_currentAngles[1];
@@ -301,10 +301,10 @@ float NormalizeHorizontal(float degree) {
 }
 
 float NormalizeVertical(float degree) {
-    if (degree > 90.0) {
-        degree = 90.0;
-    } else if (degree < -90.0) {
-        degree = -90.0;
+    if (degree > 85.0) {
+        degree = 85.0;
+    } else if (degree < -85.0) {
+        degree = -85.0;
     }
 
     return degree;
