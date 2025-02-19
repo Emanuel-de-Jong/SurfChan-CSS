@@ -65,6 +65,12 @@ class SCEnv(gym.Env):
 
         obs, player_pos, total_velocity = self._game_step(action)
         reward = self._calc_reward(player_pos, total_velocity)
+
+        if self.last_player_dist < 25.0:
+            self.done = True
+            self.terminated = True
+            reward = 15.0
+
         return obs, reward, self.terminated, self.truncated, {}
     
     def _game_step(self, action):
@@ -75,12 +81,8 @@ class SCEnv(gym.Env):
         game_mouseH = action[self.button_count] * 3.6 - 1.8
         game_mouseV = action[self.button_count + 1] * 1.8 - 0.9
 
-        pixels, player_pos, total_velocity, done = run_async(self.game.step(game_buttons, game_mouseH, game_mouseV))
+        pixels, player_pos, total_velocity = run_async(self.game.step(game_buttons, game_mouseH, game_mouseV))
         obs = {"pixels": pixels}
-        self.done = done
-        self.terminated = done
-        self.truncated = done
-        
         return obs, player_pos, total_velocity
 
     def _calc_reward(self, player_pos, total_velocity):

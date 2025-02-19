@@ -5,7 +5,6 @@
 - terminated/truncated when
     - fallen (negative reward)
     - max time/frames depleted
-    - finish reached (reward)
 - infer script
 - fix stuttering
 - advanced rl techniques
