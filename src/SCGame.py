@@ -71,10 +71,10 @@ class SCGame:
 
     def __init__(self, env):
         self.env = env
+        self.config = get_config()
 
     async def start(self, map_name):
         try:
-            self.config = get_config()
             await self.change_map(map_name)
 
             await self.start_server()
@@ -236,6 +236,14 @@ class SCGame:
     
     async def reset(self):
         await self.send_message(MESSAGE_TYPE.RESET, "")
+    
+    def get_game_info(self, keys, mouseX, mouseY):
+        img_size = self.config.model.img_size
+        return np.zeros((img_size, img_size, 3), dtype=np.uint8), \
+            np.zeros((3,), dtype=np.float32), \
+            0.0, \
+            False, \
+            False
     
     def close(self):
         if self.socket:

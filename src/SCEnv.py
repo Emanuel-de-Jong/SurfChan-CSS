@@ -21,50 +21,59 @@ from config import get_config
 from SCGame import SCGame
 
 class SCEnv(gym.Env):
-    last_player_dist = None
-    last_total_velocity = 0.0
+    key_count = 6
+    key_model_to_game = ["f", "b", "l", "r", "j", "c"]
 
     def __init__(self):
         super(SCEnv, self).__init__()
 
         self.config = get_config()
+
+        self._clear_attributes()
+
         self.game = SCGame(self)
 
         self.size = self.config.model.img_size
-        self.key_count = 6
 
-        self.action_spec = gym.spaces.Dict({
+        self.observation_space = gym.spaces.Dict({
+            "pixels": gym.spaces.Box(low=0, high=255, shape=(self.size, self.size, 3), dtype=np.uint8)
+        })
+        self.observation_spec = self.observation_space
+
+        self.action_space = gym.spaces.Dict({
             "keys": gym.spaces.Discrete(self.key_count),
             "mouse": gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
         })
-        self.action_space = self.action_spec
-
-        self.observation_spec = gym.spaces.Dict({
-            "pixels": gym.spaces.Box(low=0, high=255, shape=(self.size, self.size, 3), dtype=np.uint8),
-        })
-        self.observation_space = self.observation_spec
+        self.action_spec = self.action_space
+    
+    def _clear_attributes(self):
+        self.last_player_dist = None
+        self.last_total_velocity = 0.0
+        self.terminated = False
+        self.truncated = False
     
     async def start(self, map_name):
         await self.game.start(map_name)
-    
-    async def change_map(self, map_name):
-        await self.game.change_map(map_name)
 
     def step(self, action):
-        obs = self._get_obs()
-        reward = 0
-        terminated = False
-        truncated = False
-        return obs, reward, terminated, truncated, {}
-
-    def step_test(self, screenshot, player_pos, total_velocity):
+        obs, player_pos, total_velocity = self._get_game_info(action)
         reward = self._calc_reward(player_pos, total_velocity)
-        return f"f,1.0,0.0"
+        return obs, reward, self.terminated, self.truncated, {}
     
-    def _get_obs(self):
-        return {
-            "pixels": np.zeros((self.size, self.size, 3), dtype=np.uint8)
-        }
+    def _get_game_info(self, action):
+        game_keys = ""
+        for i in range(self.key_count):
+            game_keys += self.key_model_to_game[i] if action["keys"][i] > 0 else ""
+        
+        game_mouseX = action["mouse"][0] * 360 - 180
+        game_mouseY = action["mouse"][1] * 360 - 180
+
+        screenshot, player_pos, total_velocity, terminated, truncated = self.game.get_game_info(game_keys, game_mouseX, game_mouseY)
+        obs = {"pixels": screenshot}
+        self.terminated = terminated
+        self.truncated = truncated
+        
+        return obs, player_pos, total_velocity
 
     def _calc_reward(self, player_pos, total_velocity):
         reward = -0.1
@@ -92,8 +101,12 @@ class SCEnv(gym.Env):
 
     def reset(self, seed=None, options=None):
         asyncio.create_task(self.game.reset())
-        obs = self._get_obs()
+        self._clear_attributes()
+        obs, player_pos, total_velocity = self._get_game_info(self._fake_action())
         return obs, {}
+    
+    def _fake_action(self):
+        return {"keys": np.zeros((self.key_count,), dtype=np.uint8), "mouse": np.zeros((2,), dtype=np.float32)}
     
     def fake_tensordict(self):
         reward_spec = {"reward": torch.tensor(0.0)}
@@ -111,6 +124,9 @@ class SCEnv(gym.Env):
         }, batch_size=[])
 
         return fake_tensordict
+    
+    async def change_map(self, map_name):
+        await self.game.change_map(map_name)
     
     def close(self):
         if self.game:
