@@ -1,4 +1,5 @@
 import os
+import shutil
 from datetime import datetime
 import tqdm
 import torch
@@ -23,7 +24,7 @@ from torchrl.objectives.value import GAE
 from torchrl.record import VideoRecorder
 from torchrl.record.loggers.tensorboard import TensorboardLogger
 from torchrl._utils import compile_with_warmup, timeit
-from sc_config import get_config
+from sc_config import get_config, CONFIG_FILE_NAME
 from SCEnv import create_torchrl_env
 
 class SCTrain():
@@ -139,6 +140,8 @@ class SCTrain():
         
         losses = TensorDict(batch_size=[cfg_loss_ppo_epochs, num_mini_batches])
 
+        training_seconds_start = datetime.now().microsecond / 1_000_000
+
         collector_iter = iter(collector)
         total_iter = len(collector)
         for i in range(total_iter):
@@ -206,6 +209,9 @@ class SCTrain():
             collector.update_policy_weights_()
         
         pbar.close()
+
+        training_seconds = (datetime.now().microsecond / 1_000_000) - training_seconds_start
+        print(f"Training time: {training_seconds}s or {training_seconds/60}m or {training_seconds/3600}h")
 
         self.save(actor, critic, date_str)
 
@@ -307,7 +313,8 @@ class SCTrain():
         if not os.path.exists(results_dir):
             os.makedirs(results_dir)
         
-        print("Saving models...")
+        print("Saving results...")
+        shutil.copy2(CONFIG_FILE_NAME, os.path.join(results_dir, f"{date_str}_config.yml"))
         torch.save(actor.state_dict(), os.path.join(results_dir, f"{date_str}_actor.pth"))
         torch.save(critic.state_dict(), os.path.join(results_dir, f"{date_str}_critic.pth"))
 

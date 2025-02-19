@@ -1,7 +1,7 @@
 import yaml
 
-_CONFIG_FILE_NAME = "config.yml"
-_CONFIG_USER_FILE_NAME = "config_user.yml"
+CONFIG_FILE_NAME = "config.yml"
+CONFIG_USER_FILE_NAME = "config_user.yml"
 
 _config = None
 
@@ -32,9 +32,9 @@ def get_config():
     global _config
 
     if _config is None:
-        with open(_CONFIG_FILE_NAME, "r") as file:
+        with open(CONFIG_FILE_NAME, "r") as file:
             config_dict = yaml.safe_load(file)
-        with open(_CONFIG_USER_FILE_NAME, "r") as file:
+        with open(CONFIG_USER_FILE_NAME, "r") as file:
             config_user_dict = yaml.safe_load(file)
         
         config_dict = _merge_dicts(config_dict, config_user_dict)

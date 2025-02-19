@@ -8,8 +8,8 @@ train:
   map: beginner
   compile: False
   collector:
-    frames_per_batch: 128
-    batches: 2
+    frames_per_batch: 150
+    batches: 1
   optim:
     lr: 0.00025
     eps: 0.000001
@@ -17,7 +17,7 @@ train:
     max_grad_norm: 0.5
     anneal_lr: True
   loss:
-    mini_batch_size: 64
+    mini_batch_size: 25
     gamma: 0.99
     ppo_epochs: 3
     gae_lambda: 0.95
