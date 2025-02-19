@@ -102,16 +102,6 @@ class SCTrain():
 
         logger = TensorboardLogger(exp_name="SurfChan", log_dir="logs")
 
-        test_env = create_torchrl_env(
-            name=env_name,
-            map=map,
-            num_envs=1,
-            device=self.device,
-            is_test=True
-        )
-        test_env = test_env.append_transform(VideoRecorder(logger, tag="rendering/test", in_keys=["pixels_int"]))
-        test_env.eval()
-
         collected_frames = 0
         num_network_updates = torch.zeros((), dtype=torch.int64, device=self.device)
         pbar = tqdm.tqdm(total=total_frames)
@@ -213,22 +203,6 @@ class SCTrain():
                 }
             )
 
-            with torch.no_grad(), set_exploration_type(
-                ExplorationType.DETERMINISTIC
-            ), timeit("eval"):
-                if ((i - 1) * frames_in_batch) // total_frames < (
-                    i * frames_in_batch
-                ) // total_frames:
-                    actor.eval()
-                    test_rewards = self.eval_model(
-                        actor, test_env, num_episodes=3
-                    )
-                    metrics_to_log.update(
-                        {
-                            "eval/reward": test_rewards.mean(),
-                        }
-                    )
-                    actor.train()
             if logger:
                 metrics_to_log.update(timeit.todict(prefix="time"))
                 metrics_to_log["time/speed"] = pbar.format_dict["rate"]
@@ -238,8 +212,6 @@ class SCTrain():
             collector.update_policy_weights_()
 
         collector.shutdown()
-        if not test_env.is_closed:
-            test_env.close()
         
     def make_models(self):
         input_shape = self.env.observation_spec["pixels"].shape
@@ -331,26 +303,6 @@ class SCTrain():
         critic = actor_critic.get_value_operator()
 
         return actor, critic
-
-    def eval_model(self, actor, test_env, num_episodes=3):
-        def dump_video(module):
-            if isinstance(module, VideoRecorder):
-                module.dump()
-        
-        test_rewards = []
-        for _ in range(num_episodes):
-            td_test = test_env.rollout(
-                policy=actor,
-                auto_reset=True,
-                auto_cast_to_device=True,
-                break_when_any_done=True,
-                max_steps=10_000_000,
-            )
-            test_env.apply(dump_video)
-            reward = td_test["next", "episode_reward"][td_test["next", "done"]]
-            test_rewards.append(reward.cpu())
-        del td_test
-        return torch.cat(test_rewards, 0).mean()
 
     def close(self):
         pass
