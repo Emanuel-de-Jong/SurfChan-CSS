@@ -135,8 +135,12 @@ class SCGame:
             self.socket_writer = writer
 
             self.message_queue = asyncio.Queue()
-            while True:
-                data = await reader.read(8000)
+            while reader is not None:
+                try:
+                    data = await reader.read(8000)
+                except OSError:
+                    break
+
                 if not data:
                     print(f"Connection closed by {addr}")
                     break
@@ -150,11 +154,9 @@ class SCGame:
         except asyncio.CancelledError:
             pass
         finally:
-            print(f"Disconnecting {addr}...")
             self.socket_writer = None
             if writer is not None:
                 writer.close()
-                await writer.wait_closed()
 
     async def send_message(self, type, data):
         if not self.socket_writer or self.socket_writer.is_closing():
@@ -243,7 +245,7 @@ class SCGame:
         return pixels, player_pos, total_velocity, False
 
     async def wait_for_start(self):
-        print("Press enter to start training...")
+        print("Press enter to start...")
         # Runs input() in a separate thread
         await asyncio.to_thread(input)
 

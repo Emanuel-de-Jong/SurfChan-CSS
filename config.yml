@@ -28,6 +28,7 @@ train:
     loss_critic_type: l2
 
 model:
+  results_dir: results
   img_size: 500
 
 env:

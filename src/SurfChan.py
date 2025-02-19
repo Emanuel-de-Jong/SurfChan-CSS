@@ -36,15 +36,14 @@ class SurfChan():
 
             if self.mode == MODE.PLAY:
                 await self.create_play()
+                while True:
+                    await asyncio.sleep(1)
             elif self.mode == MODE.TRAIN:
                 await self.create_train()
             elif self.mode == MODE.INFER:
                 await self.create_infer()
             elif self.mode == MODE.FAKE_INFER:
                 await self.create_fake_infer()
-            
-            while True:
-                await asyncio.sleep(1)
         except KeyboardInterrupt:
             pass
         except asyncio.CancelledError:

@@ -204,6 +204,8 @@ class SCTrain():
 
             collector.update_policy_weights_()
         
+        pbar.close()
+
         self.save(actor, critic)
 
         collector.shutdown()
@@ -305,8 +307,9 @@ class SCTrain():
             os.makedirs(results_dir)
         
         current_date = datetime.now().strftime("%d-%m_%H-%M")
-        torch.save(actor.state_dict(), os.path.join(results_dir, f"actor_{current_date}.pth"))
-        torch.save(critic.state_dict(), os.path.join(results_dir, f"critic_{current_date}.pth"))
+        print("Saving models...")
+        torch.save(actor.state_dict(), os.path.join(results_dir, f"{current_date}_actor.pth"))
+        torch.save(critic.state_dict(), os.path.join(results_dir, f"{current_date}_critic.pth"))
 
     def close(self):
         pass
