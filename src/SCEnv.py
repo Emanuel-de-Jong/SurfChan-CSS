@@ -108,25 +108,10 @@ class SCEnv(gym.Env):
         return obs, {}
     
     def _fake_action(self):
-        return np.zeros((self.output_count,), dtype=np.float32)
-    
-    # TODO: Check if used
-    def fake_tensordict(self):
-        reward_spec = {"reward": torch.tensor(0.0)}
-        done_spec = {"done": torch.tensor(False)}
-
-        fake_obs = {"pixels": torch.zeros((self.size, self.size, 3), dtype=torch.uint8)}
-        fake_action = self._fake_action()
-        
-        fake_tensordict = TensorDict({
-            **fake_obs,
-            **fake_action,
-            **reward_spec,
-            **done_spec,
-            "next": {**fake_obs, **reward_spec, **done_spec},
-        }, batch_size=[])
-
-        return fake_tensordict
+        action = np.zeros((self.output_count,), dtype=np.float32)
+        action[self.button_count] = 0.5
+        action[self.button_count + 1] = 0.5
+        return action
     
     async def change_map(self, map_name):
         await self.game.change_map(map_name)
