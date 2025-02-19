@@ -9,6 +9,7 @@
 
 ### Setup
 - Install Python packages `pip install -r requirements.txt`.
+    - For GPUs that have CUDA, do this first `pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118`.
 - Setup server `css_server/create.md`.
 - Copy `config_user_template.yml` and rename it to `config_user.yml`. Then change the values.
 - Turn off Steam Overlay for CSS.
