@@ -252,14 +252,14 @@ public Action OnPlayerRunCmd(
     int isL = 0;
     GetTrieValue(g_buttons, "l", isL);
     if (isL == 1) {
-        vel[1] = 100000.0;
+        vel[1] = -100000.0;
     }
 
     int isR = 0;
     GetTrieValue(g_buttons, "r", isR);
     if (isR == 1) {
         if (isL == 0) {
-            vel[1] = -100000.0;
+            vel[1] = 100000.0;
         } else {
             vel[1] = 0.0;
         }
