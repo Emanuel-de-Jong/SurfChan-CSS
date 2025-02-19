@@ -37,7 +37,7 @@ class SCTrain():
         mini_batch_size = self.config.train.loss.mini_batch_size
 
         should_compile = self.config.train.compile
-        compile_mode = "reduce-overhead"
+        compile_mode = False # "reduce-overhead"
         
         self.env = create_torchrl_env(self.config.env.name, self.config.train.map)
         
@@ -171,6 +171,9 @@ class SCTrain():
                         data_buffer.extend(data_reshape)
 
                     for k, batch in enumerate(data_buffer):
+                        if k >= num_mini_batches:
+                            break
+                        
                         with timeit("update"):
                             loss, num_network_updates = update(
                                 batch, num_network_updates=num_network_updates
