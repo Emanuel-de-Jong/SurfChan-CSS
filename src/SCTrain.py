@@ -39,24 +39,12 @@ class SCTrain():
         should_compile = self.config.train.compile
         compile_mode = "reduce-overhead"
         
-        env_name = self.config.env.name
-        map = self.config.train.map
-        self.env = create_torchrl_env(
-            name=env_name,
-            map=map,
-            num_envs=self.config.train.num_envs,
-            device=self.device
-        )
+        self.env = create_torchrl_env(self.config.env.name, self.config.train.map)
         
         actor, critic = self.make_models()
 
         collector = SyncDataCollector(
-            create_env_fn=create_torchrl_env(
-                name=env_name,
-                map=map,
-                num_envs=self.config.train.num_envs,
-                device=self.device
-            ),
+            create_env_fn=self.env,
             policy=actor,
             frames_per_batch=frames_per_batch,
             total_frames=total_frames,

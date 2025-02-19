@@ -65,11 +65,7 @@ class SurfChan():
     
     async def create_play(self):
         print("Mode: Play")
-        self.env = create_torchrl_env(
-            name=self.config.env.name,
-            map=self.config.infer.map,
-            base_only=True
-        )
+        self.env = create_torchrl_env(self.config.env.name, self.config.infer.map, True)
         self.env.env.game.should_run_ai = False
     
     async def create_train(self):
@@ -82,11 +78,7 @@ class SurfChan():
     
     async def create_fake_infer(self):
         print("Mode: Fake Infer")
-        self.env = create_torchrl_env(
-            name=self.config.env.name,
-            map=self.config.infer.map,
-            base_only=True
-        )
+        self.env = create_torchrl_env(self.config.env.name, self.config.infer.map, True)
 
         action = self.env.env._fake_action()
         action[0] = 1.0 # forward

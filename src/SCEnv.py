@@ -135,33 +135,17 @@ class SCEnv(gym.Env):
         if self.game:
             self.game.close()
 
-def create_torchrl_env(name, map, num_envs=1, device="cpu", is_test=False, base_only=False):
-    env = None
-    if base_only:
-        env = _create_torchrl_base_env(name, map)
-    else:
-        env = ParallelEnv(
-            num_envs,
-            EnvCreator(lambda: _create_torchrl_base_env(name, map)),
-            serial_for_single=True,
-            device=device
-        )
-        env = TransformedEnv(env)
+def create_torchrl_env(name, map, base_only=False):
+    env = GymEnv(name)
+    env = TransformedEnv(env)
+    if not base_only:
         env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
         env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
         env.append_transform(RewardSum())
         env.append_transform(StepCounter(max_steps=4500))
-        # if not is_test:
-        #     env.append_transform(SignTransform(in_keys=["reward"]))
         # env.append_transform(DoubleToFloat())
         env.append_transform(VecNorm(in_keys=["pixels"]))
     
-    return env
-
-def _create_torchrl_base_env(name, map):
-    env = GymEnv(name)
-    env = TransformedEnv(env)
-
     run_async(env.env.init(map))
-
+    
     return env

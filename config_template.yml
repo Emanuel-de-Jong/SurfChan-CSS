@@ -6,7 +6,6 @@ infer:
 
 train:
   map: beginner
-  num_envs: 1
   compile: False
   collector:
     frames_per_batch: 512
