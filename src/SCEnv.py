@@ -20,11 +20,13 @@ import torch
 from sc_utils import run_async
 from sc_config import get_config
 from SCGame import SCGame
+from datetime import datetime
 
 class SCEnv(gym.Env):
     button_count = 6
     mouse_count = 2
     button_model_to_game = ["f", "b", "l", "r", "j", "c"]
+    last_sec_between_step = 0.0
 
     def __init__(self):
         super(SCEnv, self).__init__()
@@ -57,6 +59,10 @@ class SCEnv(gym.Env):
         await self.game.init(map_name)
 
     def step(self, action):
+        # sec_between_step = datetime.now().microsecond / 1_000_000.0
+        # print(f"Seconds between step: {sec_between_step - self.last_sec_between_step}")
+        # self.last_sec_between_step = sec_between_step
+
         obs, player_pos, total_velocity = self._game_step(action)
         reward = self._calc_reward(player_pos, total_velocity)
         return obs, reward, self.terminated, self.truncated, {}
