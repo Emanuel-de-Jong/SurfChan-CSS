@@ -90,9 +90,9 @@ class SurfChan():
         mouse[0] = 0.5 # vertical center
         mouse[1] = 0.7 # look right
         action = {"buttons": buttons, "mouse": mouse}
-        while True:
+        while not self.env.is_closed:
             await asyncio.sleep(0.034) # 30 fps
-            await asyncio.create_task(self.env.env.step(action))
+            self.env.env.step(action)
 
 if __name__ == "__main__":
     surfchan = SurfChan()
