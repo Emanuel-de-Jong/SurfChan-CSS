@@ -59,11 +59,6 @@ class SCEnv(gym.Env):
         obs, player_pos, total_velocity = self._game_step(action)
         reward = self._calc_reward(player_pos, total_velocity)
 
-        if self.last_player_dist < 25.0:
-            self.done = True
-            self.terminated = True
-            reward = 15.0
-
         return obs, reward, self.terminated, self.truncated, {}
     
     def _game_step(self, action):
@@ -99,6 +94,15 @@ class SCEnv(gym.Env):
             reward -= 0.1
         
         self.last_total_velocity = total_velocity
+
+        if self.last_player_dist < 25.0:
+            self.done = True
+            self.terminated = True
+            reward = 15.0
+        elif player_pos[2] <= self.game.map.ground:
+            self.done = True
+            self.terminated = True
+            reward = -5.0
 
         return reward
 

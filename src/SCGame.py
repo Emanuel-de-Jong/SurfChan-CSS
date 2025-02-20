@@ -46,11 +46,12 @@ class Message:
         return f"{self.type.value}:{self.data}"
 
 class Map:
-    def __init__(self, name, start_angle, start_pos, finish_pos):
+    def __init__(self, name, start_angle, start_pos, finish_pos, ground):
         self.name = name
         self.start_angle = start_angle
         self.start_pos = start_pos
         self.finish_pos = finish_pos
+        self.ground = ground
 
         self.axis = np.argmax(np.abs(self.finish_pos - self.start_pos))
 
@@ -98,7 +99,11 @@ class SCGame:
     
     async def change_map(self, map_name):
         map_config = self.config.maps[map_name]
-        self.map = Map(map_name, map_config.start_angle, np.array(map_config.start), np.array(map_config.finish))
+        self.map = Map(map_name,
+            map_config.start_angle,
+            np.array(map_config.start),
+            np.array(map_config.finish),
+            map_config.ground)
 
     async def init_server(self):
         # Copy mapcycle

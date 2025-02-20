@@ -43,7 +43,7 @@ class SCTrain():
             frames_per_batch=frames_per_batch,
             total_frames=total_frames,
             device=self.device,
-            max_frames_per_traj=-1,
+            max_frames_per_traj=frames_per_batch,
             compile_policy={"mode": compile_mode, "warmup": 1} if compile_mode else False
         )
 
