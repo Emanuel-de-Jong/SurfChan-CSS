@@ -52,7 +52,7 @@ def load_latest_models(env, device):
     update_count = torch.tensor(checkpoint["update_count"], dtype=torch.int64, device=device)
 
     models_date = datetime.fromtimestamp(os.path.getctime(checkpoint_path)).strftime("%d-%m-%y %H:%M:%S")
-    print(f"Loaded models from {models_date}")
+    print(f"Loaded models from {models_date} (update count: {update_count.item()})")
 
     return actor, critic, loss_module, optim, update_count
 

@@ -1,11 +1,10 @@
 # SurfChan
 
 ## Usage
-### Pre
+### Dependencies
 - Python
-- When using Windows 11, [remove rounded corners](https://github.com/valinet/Win11DisableRoundedCorners/releases).
-- [BSPSource](https://github.com/ata4/bspsrc/releases) to decompile maps and find spawn, trace point and finish locations in Hammer.
 - Download maps [here](https://github.com/OuiSURF/Surf_Maps).
+- [BSPSource](https://github.com/ata4/bspsrc/releases) to decompile maps and find spawn, trace point and finish locations in Hammer.
 
 ### Setup
 - Install Python packages `pip install -r requirements.txt`.
@@ -14,10 +13,15 @@
 - Copy `config_user_template.yml` and rename it to `config_user.yml`. Then change the values.
 - Turn off Steam Overlay for CSS.
 - Run `disable_server_internet.ps1` with admin privileges.
+- When using Windows 11, [remove rounded corners](https://github.com/valinet/Win11DisableRoundedCorners/releases).
 
 ### Run
-- `./run.bat`
-- In CSS, select a team and press `F1` to run visual commands
+- Run one of the batch files.
+    - `play.bat`: Move around in CSS yourself.
+    - `train.bat`: Train a model.
+    - `infer.bat`: Have a trained model play indefinitely.
+    - `fake_infer.bat`: Acts as a model inferencing to test env, game, server, plugin and css.
+- In CSS, select a team and press `F1` to run visual commands.
 
 ## Development
 ### Pre
