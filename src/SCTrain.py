@@ -26,6 +26,7 @@ from torchrl.record.loggers.tensorboard import TensorboardLogger
 from torchrl._utils import compile_with_warmup, timeit
 from sc_config import get_config, CONFIG_FILE_NAME
 from sc_utils import get_torch_device
+from sc_model_utils import load_latest_models
 from SCEnv import create_torchrl_env
 
 class SCTrain():
@@ -45,7 +46,12 @@ class SCTrain():
         
         self.env = create_torchrl_env(self.config.env.name, self.config.train.map)
         
-        actor, critic = self.make_models()
+        actor, critic = None, None
+        if self.config.train.should_resume:
+            actor, critic = load_latest_models()
+        
+        if actor is None or critic is None:
+            actor, critic = self.make_models()
 
         collector = SyncDataCollector(
             create_env_fn=self.env,

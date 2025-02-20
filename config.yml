@@ -6,10 +6,11 @@ infer:
 
 train:
   map: beginner
+  should_resume: True
   compile: False
   collector:
     frames_per_batch: 150
-    batches: 1
+    batches: 2
   optim:
     lr: 0.00025
     eps: 0.000001
