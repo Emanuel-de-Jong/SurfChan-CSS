@@ -35,12 +35,12 @@ def load_latest_models(env, device):
     global config
     results_dir = config.model.results_dir
     if not os.path.exists(results_dir):
-        return None, None, None, None
+        return None, None, None, None, None
     
     result_paths = [os.path.join(results_dir, p) for p in os.listdir(results_dir)]
     checkpoint_paths = [p for p in result_paths if p.endswith('checkpoint.pth')]
     if len(checkpoint_paths) == 0:
-        return None, None, None, None
+        return None, None, None, None, None
     
     checkpoint_path = max(checkpoint_paths, key=os.path.getctime)
     checkpoint = torch.load(checkpoint_path, map_location=device)

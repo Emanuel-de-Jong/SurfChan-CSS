@@ -33,11 +33,12 @@ class SCTrain():
         
         self.env = create_torchrl_env(self.config.env.name, self.config.train.map)
         
-        actor, critic, loss_module, optim, update_count = get_models(self.env, self.device)
+        self.actor, self.critic, self.loss_module, self.optim, self.update_count = \
+            get_models(self.env, self.device)
 
-        collector = SyncDataCollector(
+        self.collector = SyncDataCollector(
             create_env_fn=self.env,
-            policy=actor,
+            policy=self.actor,
             frames_per_batch=frames_per_batch,
             total_frames=total_frames,
             device=self.device,
@@ -58,14 +59,14 @@ class SCTrain():
         adv_module = GAE(
             gamma=self.config.train.loss.gamma,
             lmbda=self.config.train.loss.gae_lambda,
-            value_network=critic,
+            value_network=self.critic,
             average_gae=False,
             device=self.device,
             vectorized=not should_compile,
         )
 
-        date_str = datetime.now().strftime("%d-%m_%H-%M")
-        logger = TensorboardLogger(exp_name=date_str, log_dir=f"{self.config.model.results_dir}/logs")
+        self.date_str = datetime.now().strftime("%d-%m_%H-%M")
+        logger = TensorboardLogger(exp_name=self.date_str, log_dir=f"{self.config.model.results_dir}/logs")
 
         collected_frames = 0
         pbar = tqdm.tqdm(total=total_frames)
@@ -75,28 +76,28 @@ class SCTrain():
         )
 
         def update(batch, update_count):
-            optim.zero_grad(set_to_none=True)
+            self.optim.zero_grad(set_to_none=True)
 
             alpha = torch.ones((), device=self.device)
             if cfg_optim_anneal_lr:
                 alpha = 1 - (update_count / total_network_updates)
-                for group in optim.param_groups:
+                for group in self.optim.param_groups:
                     group["lr"] = cfg_optim_lr * alpha
             if cfg_loss_anneal_clip_eps:
-                loss_module.clip_epsilon.copy_(cfg_loss_clip_epsilon * alpha)
+                self.loss_module.clip_epsilon.copy_(cfg_loss_clip_epsilon * alpha)
             update_count = update_count + 1
             
             batch = batch.to(self.device, non_blocking=True)
 
-            loss = loss_module(batch)
+            loss = self.loss_module(batch)
             loss_sum = loss["loss_critic"] + loss["loss_objective"] + loss["loss_entropy"]
             
             loss_sum.backward()
             torch.nn.utils.clip_grad_norm_(
-                loss_module.parameters(), max_norm=cfg_optim_max_grad_norm
+                self.loss_module.parameters(), max_norm=cfg_optim_max_grad_norm
             )
 
-            optim.step()
+            self.optim.step()
             return loss.detach().set("alpha", alpha), update_count
 
         if should_compile:
@@ -114,8 +115,8 @@ class SCTrain():
 
         training_seconds_start = time.time()
 
-        collector_iter = iter(collector)
-        total_iter = len(collector)
+        collector_iter = iter(self.collector)
+        total_iter = len(self.collector)
         for i in range(total_iter):
             timeit.printevery(1000, total_iter, erase=True)
 
@@ -178,32 +179,35 @@ class SCTrain():
                 for key, value in metrics_to_log.items():
                     logger.log_scalar(key, value, collected_frames)
 
-            collector.update_policy_weights_()
+            self.collector.update_policy_weights_()
         
         pbar.close()
 
         training_seconds = time.time() - training_seconds_start
         print(f"Training time: {training_seconds:.2f}s or {training_seconds/60:.2f}m or {training_seconds/3600:.2f}h")
 
-        self.save(actor, critic, optim, update_count, date_str)
+    def close(self):
+        self.save()
 
-        collector.shutdown()
-    
-    def save(self, actor, critic, optim, update_count, date_str):
+        if not self.collector is None:
+            self.collector.shutdown()
+
+    def save(self):
+        if self.actor is None or self.critic is None or self.optim is None \
+                or self.update_count is None or self.date_str is None:
+            return
+
         results_dir = self.config.model.results_dir
         if not os.path.exists(results_dir):
             os.makedirs(results_dir)
         
         print("Saving results...")
-        shutil.copy2(CONFIG_FILE_NAME, os.path.join(results_dir, f"{date_str}_config.yml"))
+        shutil.copy2(CONFIG_FILE_NAME, os.path.join(results_dir, f"{self.date_str}_config.yml"))
 
         checkpoint = {
-            "actor": actor.state_dict(),
-            "critic": critic.state_dict(),
-            "optim": optim.state_dict(),
-            "update_count": update_count.item(),
+            "actor": self.actor.state_dict(),
+            "critic": self.critic.state_dict(),
+            "optim": self.optim.state_dict(),
+            "update_count": self.update_count.item(),
         }
-        torch.save(checkpoint, os.path.join(results_dir, f"{date_str}_checkpoint.pth"))
-
-    def close(self):
-        pass
+        torch.save(checkpoint, os.path.join(results_dir, f"{self.date_str}_checkpoint.pth"))

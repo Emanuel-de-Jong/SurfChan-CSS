@@ -1,5 +1,6 @@
 import sys
 import asyncio
+import traceback
 from enum import Enum
 import numpy as np
 import gymnasium as gym
@@ -48,6 +49,8 @@ class SurfChan():
             pass
         except asyncio.CancelledError:
             pass
+        except Exception:
+            traceback.print_exc()
         finally:
             print("Closing...")
             if self.train is not None:
