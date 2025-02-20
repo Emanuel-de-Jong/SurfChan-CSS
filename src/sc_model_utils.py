@@ -20,14 +20,14 @@ config = get_config()
 
 def get_models(env, device):
     global config
-    actor, critic, loss_module, optim = None, None, None, None
-    update_count = torch.zeros((), dtype=torch.int64, device=device)
+    actor, critic, loss_module, optim, update_count = None, None, None, None, None
     if config.train.should_resume:
         actor, critic, loss_module, optim, update_count = load_latest_models(env, device)
 
     if actor is None:
         print(f"Created new models")
         actor, critic, loss_module, optim = create_models(env, device)
+        update_count = torch.zeros((), dtype=torch.int64, device=device)
 
     return actor, critic, loss_module, optim, update_count
 
