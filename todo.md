@@ -1,7 +1,6 @@
 **TODO**
 - fixed step timestamps
 - speed up for faster training
-- mid train save on cancel
 - terminated/truncated when
     - fallen (negative reward)
     - max time/frames depleted

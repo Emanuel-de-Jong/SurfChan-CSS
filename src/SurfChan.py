@@ -73,6 +73,7 @@ class SurfChan():
     async def create_train(self):
         print("Mode: Train")
         self.train = SCTrain()
+        await self.train.train()
     
     async def create_infer(self):
         print("Mode: Infer")

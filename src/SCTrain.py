@@ -1,6 +1,7 @@
 import os
 import shutil
 import time
+import asyncio
 from datetime import datetime
 import tqdm
 import torch
@@ -17,7 +18,7 @@ from sc_model_utils import get_models
 from SCEnv import create_torchrl_env
 
 class SCTrain():
-    def __init__(self):
+    async def train(self):
         self.config = get_config()
         
         torch.set_float32_matmul_precision("high")
@@ -118,6 +119,8 @@ class SCTrain():
         collector_iter = iter(self.collector)
         total_iter = len(self.collector)
         for i in range(total_iter):
+            await asyncio.sleep(1)
+
             timeit.printevery(1000, total_iter, erase=True)
 
             with timeit("collecting"):
