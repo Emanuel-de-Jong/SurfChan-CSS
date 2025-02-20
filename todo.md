@@ -1,4 +1,5 @@
 **TODO**
+- copy content of tensorboard on model load
 - fixed step timestamps
 - speed up for faster training
 - infer script
