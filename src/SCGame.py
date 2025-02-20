@@ -217,8 +217,6 @@ class SCGame:
         
         await self.send_message(MESSAGE_TYPE.STEP, message_data)
 
-        sct = mss.mss()
-
         data = await self.wait_for_message(MESSAGE_TYPE.STEP)
         sep_data = data.split(",")
 
@@ -228,19 +226,9 @@ class SCGame:
         total_velocity = float(sep_data[7])
         is_crouch = sep_data[8]
 
-        pixels = None
-        max_tries = 5
-        tries = 0
-        while pixels is None:
-            try:
-                pixels = np.array(sct.grab(self.css_window_size))
-            except mss.exception.ScreenShotError as e:
-                print(e)
-                tries += 1
-                if tries > max_tries:
-                    sys.exit(1)
-        
-        pixels = cv2.cvtColor(pixels, cv2.COLOR_RGBA2RGB)
+        with mss.mss() as sct:
+            pixels = np.array(sct.grab(self.css_window_size))
+            pixels = cv2.cvtColor(pixels, cv2.COLOR_RGBA2RGB)
         
         return pixels, player_pos, total_velocity
 
