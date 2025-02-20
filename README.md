@@ -13,6 +13,7 @@
 - Setup server `css_server/create.md`.
 - Copy `config_user_template.yml` and rename it to `config_user.yml`. Then change the values.
 - Turn off Steam Overlay for CSS.
+- Run `disable_server_internet.ps1` with admin privileges.
 
 ### Run
 - `./run.bat`
