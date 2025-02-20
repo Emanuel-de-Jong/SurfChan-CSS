@@ -33,7 +33,7 @@ class SCTrain():
         
         self.env = create_torchrl_env(self.config.env.name, self.config.train.map)
         
-        actor, critic, loss_module, optim = get_models(self.env, self.device)
+        actor, critic, loss_module, optim, update_count = get_models(self.env, self.device)
 
         collector = SyncDataCollector(
             create_env_fn=self.env,
@@ -68,24 +68,23 @@ class SCTrain():
         logger = TensorboardLogger(exp_name=date_str, log_dir=f"{self.config.model.results_dir}/logs")
 
         collected_frames = 0
-        num_network_updates = torch.zeros((), dtype=torch.int64, device=self.device)
         pbar = tqdm.tqdm(total=total_frames)
         num_mini_batches = frames_per_batch // mini_batch_size
         total_network_updates = (
             (total_frames // frames_per_batch) * self.config.train.loss.ppo_epochs * num_mini_batches
         )
 
-        def update(batch, num_network_updates):
+        def update(batch, update_count):
             optim.zero_grad(set_to_none=True)
 
             alpha = torch.ones((), device=self.device)
             if cfg_optim_anneal_lr:
-                alpha = 1 - (num_network_updates / total_network_updates)
+                alpha = 1 - (update_count / total_network_updates)
                 for group in optim.param_groups:
                     group["lr"] = cfg_optim_lr * alpha
             if cfg_loss_anneal_clip_eps:
                 loss_module.clip_epsilon.copy_(cfg_loss_clip_epsilon * alpha)
-            num_network_updates = num_network_updates + 1
+            update_count = update_count + 1
             
             batch = batch.to(self.device, non_blocking=True)
 
@@ -98,7 +97,7 @@ class SCTrain():
             )
 
             optim.step()
-            return loss.detach().set("alpha", alpha), num_network_updates
+            return loss.detach().set("alpha", alpha), update_count
 
         if should_compile:
             update = compile_with_warmup(update, mode=compile_mode, warmup=1)
@@ -154,11 +153,11 @@ class SCTrain():
                             break
                         
                         with timeit("update"):
-                            loss, num_network_updates = update(
-                                batch, num_network_updates=num_network_updates
+                            loss, update_count = update(
+                                batch, update_count=update_count
                             )
                         loss = loss.clone()
-                        num_network_updates = num_network_updates.clone()
+                        update_count = update_count.clone()
                         losses[j, k] = loss.select(
                             "loss_critic", "loss_entropy", "loss_objective"
                         )
@@ -186,20 +185,25 @@ class SCTrain():
         training_seconds = time.time() - training_seconds_start
         print(f"Training time: {training_seconds:.2f}s or {training_seconds/60:.2f}m or {training_seconds/3600:.2f}h")
 
-        self.save(actor, critic, optim, date_str)
+        self.save(actor, critic, optim, update_count, date_str)
 
         collector.shutdown()
     
-    def save(self, actor, critic, optim, date_str):
+    def save(self, actor, critic, optim, update_count, date_str):
         results_dir = self.config.model.results_dir
         if not os.path.exists(results_dir):
             os.makedirs(results_dir)
         
         print("Saving results...")
         shutil.copy2(CONFIG_FILE_NAME, os.path.join(results_dir, f"{date_str}_config.yml"))
-        torch.save(actor.state_dict(), os.path.join(results_dir, f"{date_str}_actor.pth"))
-        torch.save(critic.state_dict(), os.path.join(results_dir, f"{date_str}_critic.pth"))
-        torch.save(optim.state_dict(), os.path.join(results_dir, f"{date_str}_optim.pth"))
+
+        checkpoint = {
+            "actor": actor.state_dict(),
+            "critic": critic.state_dict(),
+            "optim": optim.state_dict(),
+            "update_count": update_count.item(),
+        }
+        torch.save(checkpoint, os.path.join(results_dir, f"{date_str}_checkpoint.pth"))
 
     def close(self):
         pass

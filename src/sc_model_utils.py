@@ -21,14 +21,15 @@ config = get_config()
 def get_models(env, device):
     global config
     actor, critic, loss_module, optim = None, None, None, None
+    update_count = torch.zeros((), dtype=torch.int64, device=device)
     if config.train.should_resume:
-        actor, critic, loss_module, optim = load_latest_models(env, device)
+        actor, critic, loss_module, optim, update_count = load_latest_models(env, device)
 
     if actor is None:
         print(f"Created new models")
         actor, critic, loss_module, optim = create_models(env, device)
 
-    return actor, critic, loss_module, optim
+    return actor, critic, loss_module, optim, update_count
 
 def load_latest_models(env, device):
     global config
@@ -37,24 +38,23 @@ def load_latest_models(env, device):
         return None, None, None, None
     
     result_paths = [os.path.join(results_dir, p) for p in os.listdir(results_dir)]
-    actor_paths = [p for p in result_paths if p.endswith('actor.pth')]
-    if len(actor_paths) == 0:
+    checkpoint_paths = [p for p in result_paths if p.endswith('checkpoint.pth')]
+    if len(checkpoint_paths) == 0:
         return None, None, None, None
     
-    actor_path = max(actor_paths, key=lambda p: os.path.getctime(p))
-    critic_path = actor_path.replace('actor', 'critic')
-    optim_path = actor_path.replace('actor', 'optim')
+    checkpoint_path = max(checkpoint_paths, key=os.path.getctime)
+    checkpoint = torch.load(checkpoint_path, map_location=device)
 
     actor, critic, loss_module, optim = create_models(env, device)
+    actor.load_state_dict(checkpoint["actor"])
+    critic.load_state_dict(checkpoint["critic"])
+    optim.load_state_dict(checkpoint["optim"])
+    update_count = torch.tensor(checkpoint["update_count"], dtype=torch.int64, device=device)
 
-    actor.load_state_dict(torch.load(actor_path, map_location=device))
-    critic.load_state_dict(torch.load(critic_path, map_location=device))
-    optim.load_state_dict(torch.load(optim_path, map_location=device))
-
-    models_date = datetime.fromtimestamp(os.path.getctime(actor_path)).strftime("%d-%m-%y %H:%M:%S")
+    models_date = datetime.fromtimestamp(os.path.getctime(checkpoint_path)).strftime("%d-%m-%y %H:%M:%S")
     print(f"Loaded models from {models_date}")
 
-    return actor, critic, loss_module, optim
+    return actor, critic, loss_module, optim, update_count
 
 def create_models(env, device):
     global config
