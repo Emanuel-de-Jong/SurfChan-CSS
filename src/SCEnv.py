@@ -132,7 +132,6 @@ def create_torchrl_env(name, map, base_only=False):
         env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
         env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
         env.append_transform(RewardSum())
-        env.append_transform(StepCounter(max_steps=4500))
         # env.append_transform(DoubleToFloat())
         env.append_transform(VecNorm(in_keys=["pixels"]))
     

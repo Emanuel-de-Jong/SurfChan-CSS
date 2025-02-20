@@ -1,9 +1,6 @@
 **TODO**
 - fixed step timestamps
 - speed up for faster training
-- terminated/truncated when
-    - fallen (negative reward)
-    - max time/frames depleted
 - infer script
 - fix stuttering
 - advanced rl techniques
