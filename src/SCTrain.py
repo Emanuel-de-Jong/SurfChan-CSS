@@ -119,7 +119,7 @@ class SCTrain():
         collector_iter = iter(self.collector)
         total_iter = len(self.collector)
         for i in range(total_iter):
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.1)
 
             timeit.printevery(1000, total_iter, erase=True)
 

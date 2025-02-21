@@ -1,4 +1,5 @@
 # SurfChan
+Training and inference pipeline for a PPO model that can play Source Engine [surf](https://www.youtube.com/watch?v=3pCyKM2YWrI). Specifically on Counter-Strike: Source at the moment.
 
 ## Usage
 ### Dependencies
