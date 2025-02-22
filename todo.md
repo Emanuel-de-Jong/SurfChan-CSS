@@ -1,8 +1,5 @@
 # TODO
 
-### **0.x:** Trainable to see if model improves at all
-- fix action NA bug
-
 ### **1.0:** Good single stage finish
 - check biggest performance hassles (measure class)
 - copy content of tensorboard on model load

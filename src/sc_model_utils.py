@@ -141,7 +141,7 @@ def create_models(env, device):
     policy_module = TensorDictModule(
         module=torch.nn.Sequential(
             policy_module,
-            NormalParamExtractor(scale_mapping="biased_softplus_1")
+            NormalParamExtractor(scale_mapping="biased_softplus_1", scale_lb=0.01)
         ),
         in_keys=["common_features"],
         out_keys=["loc", "scale"],

@@ -176,6 +176,9 @@ class SCTrain():
         
         batch = batch.to(self.device, non_blocking=True)
 
+        if "sample_log_prob" in batch:
+            batch["sample_log_prob"] = batch["sample_log_prob"].clamp(-10, 10)
+
         loss = self.models.loss_module(batch)
         loss_sum = loss["loss_critic"] + loss["loss_objective"] + loss["loss_entropy"]
         
