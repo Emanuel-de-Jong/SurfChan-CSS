@@ -36,12 +36,11 @@ class SCTrain():
         
         self.env = create_torchrl_env(self.config.train.map)
         
-        self.actor, self.critic, self.loss_module, self.optim, self.update_count, self.step_times = \
-            get_models(self.env, self.device)
+        self.models, self.stats = get_models(self.env, self.device)
 
         self.collector = SyncDataCollector(
             create_env_fn=self.env,
-            policy=self.actor,
+            policy=self.models.actor,
             frames_per_batch=frames_per_batch,
             total_frames=total_frames,
             device=self.device,
@@ -63,7 +62,7 @@ class SCTrain():
         adv_module = GAE(
             gamma=self.loss_conf.gamma,
             lmbda=self.loss_conf.gae_lambda,
-            value_network=self.critic,
+            value_network=self.models.critic,
             average_gae=False,
             device=self.device,
             vectorized=not should_compile,
@@ -155,7 +154,7 @@ class SCTrain():
 
             if logger:
                 avg_batch_step_time = self.get_avg_batch_step_time()
-                self.step_times.append(avg_batch_step_time)
+                self.stats.step_times.append(avg_batch_step_time)
 
                 time_dict = sc_timer.to_dict("tb", "time/")
                 time_dict["time/avg_step"] = avg_batch_step_time
@@ -169,28 +168,28 @@ class SCTrain():
         pbar.close()
 
     def update(self, batch):
-        self.optim.zero_grad(set_to_none=True)
+        self.models.optim.zero_grad(set_to_none=True)
 
         alpha = torch.ones((), device=self.device)
         if self.optim_conf.anneal_lr:
-            alpha = 1 - (self.update_count / self.total_network_updates)
-            for group in self.optim.param_groups:
+            alpha = 1 - (self.stats.update_count / self.total_network_updates)
+            for group in self.models.optim.param_groups:
                 group["lr"] = self.optim_conf.lr * alpha
         if self.loss_conf.anneal_clip_epsilon:
-            self.loss_module.clip_epsilon.copy_(self.loss_conf.clip_epsilon * alpha)
-        self.update_count += 1
+            self.models.loss_module.clip_epsilon.copy_(self.loss_conf.clip_epsilon * alpha)
+        self.stats.update_count += 1
         
         batch = batch.to(self.device, non_blocking=True)
 
-        loss = self.loss_module(batch)
+        loss = self.models.loss_module(batch)
         loss_sum = loss["loss_critic"] + loss["loss_objective"] + loss["loss_entropy"]
         
         loss_sum.backward()
         torch.nn.utils.clip_grad_norm_(
-            self.loss_module.parameters(), max_norm=self.optim_conf.max_grad_norm
+            self.models.loss_module.parameters(), max_norm=self.optim_conf.max_grad_norm
         )
 
-        self.optim.step()
+        self.models.optim.step()
         return loss.detach().set("alpha", alpha)
     
     def get_avg_batch_step_time(self):
@@ -215,9 +214,9 @@ class SCTrain():
         if not self.config.train.should_save:
             return
 
-        if self.actor is None or self.critic is None or self.optim is None \
-                or self.update_count is None or self.date_str is None \
-                or self.step_times is None:
+        if self.models.actor is None or self.models.critic is None or self.models.optim is None \
+                or self.stats.update_count is None or self.date_str is None \
+                or self.stats.step_times is None:
             return
 
         results_dir = self.config.model.results_dir
@@ -228,10 +227,14 @@ class SCTrain():
         shutil.copy2(CONFIG_FILE_NAME, os.path.join(results_dir, f"{self.date_str}_config.yml"))
 
         checkpoint = {
-            "actor": self.actor.state_dict(),
-            "critic": self.critic.state_dict(),
-            "optim": self.optim.state_dict(),
-            "update_count": self.update_count.item(),
-            "step_times": self.step_times,
+            "models": {
+                "actor": self.models.actor.state_dict(),
+                "critic": self.models.critic.state_dict(),
+                "optim": self.models.optim.state_dict(),
+            },
+            "stats": {
+                "update_count": self.stats.update_count.item(),
+                "step_times": self.stats.step_times,
+            },
         }
         torch.save(checkpoint, os.path.join(results_dir, f"{self.date_str}_checkpoint.pth"))

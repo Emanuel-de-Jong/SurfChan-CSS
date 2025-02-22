@@ -7,6 +7,7 @@ import gymnasium as gym
 from sc_config import get_config
 from SCEnv import SCEnv, create_torchrl_env
 from SCTrain import SCTrain
+from SCInfer import SCInfer
 from SCTimer import sc_timer
 
 class MODE(Enum):
@@ -80,7 +81,8 @@ class SurfChan():
     
     async def create_infer(self):
         print("Mode: Infer")
-        return
+        self.infer = SCInfer()
+        await self.infer.infer()
     
     async def create_fake_infer(self):
         print("Mode: Fake Infer")

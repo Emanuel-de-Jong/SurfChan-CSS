@@ -28,6 +28,12 @@ class SCTimer():
         
         return elapsed_time
     
+    def get_current(self, name, category=_BASE_CATEGORY):
+        if category not in self._timers or name not in self._timers[category]:
+            return None
+        
+        return perf_counter() - self._timers[category][name]["current"]
+    
     def get(self, name, category=_BASE_CATEGORY):
         if category not in self._timers or name not in self._timers[category]:
             return None
