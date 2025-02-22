@@ -1,7 +1,6 @@
 # TODO
 
 ### **0.x:** Trainable to see if model improves at all
-- fix action NA bug
 - check if all variables needed for training resume are saved
 
 ### **1.0:** Good single stage finish

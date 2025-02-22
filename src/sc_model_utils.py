@@ -95,16 +95,23 @@ def create_models(env, device):
     )
 
     policy_net = MLP(
-        in_features=common_mlp.out_features,
+        in_features=common_mlp_output.shape[-1],
         out_features=num_outputs * 2,
         activation_class=torch.nn.ReLU,
         num_cells=[],
         device=device,
     )
+
+    policy_module = TensorDictModule(
+        module=policy_net,
+        in_keys=["common_features"],
+        out_keys=["policy_params"],
+    )
+
     policy_module = TensorDictModule(
         module=torch.nn.Sequential(
-            policy_net,
-            NormalParamExtractor(scale_mapping="exp")
+            policy_module,
+            NormalParamExtractor(scale_mapping="biased_softplus_1")
         ),
         in_keys=["common_features"],
         out_keys=["loc", "scale"],
