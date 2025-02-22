@@ -29,27 +29,28 @@ def get_torch_device():
 
 def get_models(env, device):
     global config
-    actor, critic, loss_module, optim, update_count = None, None, None, None, None
+    actor, critic, loss_module, optim, update_count, step_times = None, None, None, None, None, None
     if config.train.should_resume:
-        actor, critic, loss_module, optim, update_count = load_latest_models(env, device)
+        actor, critic, loss_module, optim, update_count, step_times = load_latest_models(env, device)
 
     if actor is None:
         print(f"Created new models")
         actor, critic, loss_module, optim = create_models(env, device)
         update_count = torch.zeros((), dtype=torch.int64, device=device)
+        step_times = []
 
-    return actor, critic, loss_module, optim, update_count
+    return actor, critic, loss_module, optim, update_count, step_times
 
 def load_latest_models(env, device):
     global config
     results_dir = config.model.results_dir
     if not os.path.exists(results_dir):
-        return None, None, None, None, None
+        return None, None, None, None, None, None
     
     result_paths = [os.path.join(results_dir, p) for p in os.listdir(results_dir)]
     checkpoint_paths = [p for p in result_paths if p.endswith('checkpoint.pth')]
     if len(checkpoint_paths) == 0:
-        return None, None, None, None, None
+        return None, None, None, None, None, None
     
     checkpoint_path = max(checkpoint_paths, key=os.path.getctime)
     checkpoint = torch.load(checkpoint_path, map_location=device)
@@ -59,11 +60,12 @@ def load_latest_models(env, device):
     critic.load_state_dict(checkpoint["critic"])
     optim.load_state_dict(checkpoint["optim"])
     update_count = torch.tensor(checkpoint["update_count"], dtype=torch.int64, device=device)
+    step_times = checkpoint["step_times"]
 
     models_date = datetime.fromtimestamp(os.path.getctime(checkpoint_path)).strftime("%d-%m-%y %H:%M:%S")
     print(f"Loaded models from {models_date} (update count: {update_count.item()})")
 
-    return actor, critic, loss_module, optim, update_count
+    return actor, critic, loss_module, optim, update_count, step_times
 
 def create_models(env, device):
     global config

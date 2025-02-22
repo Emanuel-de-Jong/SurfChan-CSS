@@ -36,7 +36,7 @@ class SCTrain():
         
         self.env = create_torchrl_env(self.config.train.map)
         
-        self.actor, self.critic, self.loss_module, self.optim, self.update_count = \
+        self.actor, self.critic, self.loss_module, self.optim, self.update_count, self.step_times = \
             get_models(self.env, self.device)
 
         self.collector = SyncDataCollector(
@@ -154,8 +154,11 @@ class SCTrain():
             )
 
             if logger:
+                avg_batch_step_time = self.get_avg_batch_step_time()
+                self.step_times.append(avg_batch_step_time)
+
                 time_dict = sc_timer.to_dict("tb", "time/")
-                time_dict["time/avg_step"] = self.get_avg_step_time()
+                time_dict["time/avg_step"] = avg_batch_step_time
                 metrics_to_log.update(time_dict)
                 metrics_to_log["time/speed"] = pbar.format_dict["rate"]
                 for key, value in metrics_to_log.items():
@@ -190,7 +193,7 @@ class SCTrain():
         self.optim.step()
         return loss.detach().set("alpha", alpha)
     
-    def get_avg_step_time(self):
+    def get_avg_batch_step_time(self):
         step_times = sc_timer.get("step")
         sc_timer.clear("step")
 
@@ -213,7 +216,8 @@ class SCTrain():
             return
 
         if self.actor is None or self.critic is None or self.optim is None \
-                or self.update_count is None or self.date_str is None:
+                or self.update_count is None or self.date_str is None \
+                or self.step_times is None:
             return
 
         results_dir = self.config.model.results_dir
@@ -228,5 +232,6 @@ class SCTrain():
             "critic": self.critic.state_dict(),
             "optim": self.optim.state_dict(),
             "update_count": self.update_count.item(),
+            "step_times": self.step_times,
         }
         torch.save(checkpoint, os.path.join(results_dir, f"{self.date_str}_checkpoint.pth"))

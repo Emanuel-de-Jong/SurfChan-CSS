@@ -70,6 +70,9 @@ class SCTimer():
                 sorted_timers = sorted(self._timers[category_to_print])
                 for name_to_print in sorted_timers:
                     output = self._name_to_str(name_to_print, category_to_print)
+                    if output is None:
+                        continue
+                    
                     if category_to_print != self._BASE_CATEGORY:
                         output = f"  {output}"
                     
@@ -80,6 +83,9 @@ class SCTimer():
             self.stop(name, category)
 
         times = self._timers[category][name]["times"]
+        if len(times) == 0:
+            return None
+        
         treshold = sum(times) / len(times) * 100
         times = [time for time in times if time < treshold]
 
