@@ -95,9 +95,9 @@ class SCTrain():
         for i in range(total_iter):
             await asyncio.sleep(0.1)
 
-            sc_timer.start("tb:collecting")
+            sc_timer.start("collecting", "tb")
             data = next(collector_iter)
-            sc_timer.stop("tb:collecting")
+            sc_timer.stop("collecting", "tb")
 
             metrics_to_log = {}
             frames_in_batch = data.numel()
@@ -115,19 +115,19 @@ class SCTrain():
                     }
                 )
 
-            sc_timer.start("tb:training")
+            sc_timer.start("training", "tb")
             for j in range(self.loss_conf.ppo_epochs):
                 with torch.no_grad():
-                    sc_timer.start("tb:adv")
+                    sc_timer.start("adv", "tb")
                     data = adv_module(data)
                     if compile_mode:
                         data = data.clone()
-                    sc_timer.stop("tb:adv")
+                    sc_timer.stop("adv", "tb")
                 
-                sc_timer.start("tb:rb extend")
+                sc_timer.start("rb extend", "tb")
                 data_reshape = data.reshape(-1)
                 data_buffer.extend(data_reshape)
-                sc_timer.stop("tb:rb extend")
+                sc_timer.stop("rb extend", "tb")
 
                 for k, batch in enumerate(data_buffer):
                     if k >= self.loss_conf.mini_batches_per_batch:
@@ -141,7 +141,7 @@ class SCTrain():
                     losses[j, k] = loss.select(
                         "loss_critic", "loss_entropy", "loss_objective"
                     )
-            sc_timer.stop("tb:training")
+            sc_timer.stop("training", "tb")
 
             losses_mean = losses.apply(lambda x: x.float().mean(), batch_size=[])
             for key, value in losses_mean.items():
@@ -154,7 +154,7 @@ class SCTrain():
             )
 
             if logger:
-                metrics_to_log.update(sc_timer.to_dict(prefix="tb:"))
+                metrics_to_log.update(sc_timer.to_dict("tb", "time/"))
                 metrics_to_log["time/speed"] = pbar.format_dict["rate"]
                 for key, value in metrics_to_log.items():
                     logger.log_scalar(key, value, collected_frames)

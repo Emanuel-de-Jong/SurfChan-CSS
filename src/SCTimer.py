@@ -10,46 +10,38 @@ class SCTimer():
         self._timers[self._BASE_CATEGORY] = {}
 
     def start(self, name, category=_BASE_CATEGORY):
-        if not category in self._timers:
-            self._timers[category] = {}
-
-        if not name in self._timers[category]:
-            self._timers[category][name] = {
-                "current": 0,
-                "times": []
-            }
-        
-        self._timers[category][name]["current"] = perf_counter()
+        category_timers = self._timers.setdefault(category, {})
+        timer = category_timers.setdefault(name, {"current": 0, "times": []})
+        timer["current"] = perf_counter()
     
     def stop(self, name, category=_BASE_CATEGORY, should_print=False):
-        if not category in self._timers or not name in self._timers[category]:
+        if category not in self._timers or name not in self._timers[category]:
             return
         
-        time = perf_counter() - self._timers[category][name]["current"]
-        self._timers[category][name]["times"].append(time)
-        self._timers[category][name]["current"] = 0
+        timer = self._timers[category][name]
+        elapsed_time = perf_counter() - timer["current"]
+        timer["times"].append(elapsed_time)
+        timer["current"] = 0
 
         if should_print:
-            print(f"{name}: {time:.4f}s")
+            print(f"{name}: {elapsed_time:.4f}s")
 
     def clear(self, name, category=_BASE_CATEGORY):
         self._timers[category][name]["times"] = []
 
     def to_dict(self, category=None, prefix=None):
         if category is None:
-            timers = {}
-            for timers in self._timers.values():
-                for name, timer in timers.items():
-                    timers[name] = timer
+            timers = {
+                name: timer for timers in self._timers.values()
+                for name, timer in timers.items()
+            }
         else:
-            timers = self._timers[category]
-        
-        timer_dict = {}
-        for name, timer in timers.items():
-            timer_dict_name = f"{prefix}{name}" if prefix else name
-            timer_dict[timer_dict_name] = timer["times"][-1]
-        
-        return timer_dict
+            timers = self._timers.get(category, {})
+
+        return {
+            (f"{prefix}{name}" if prefix else name): timer["times"][-1]
+            for name, timer in timers.items()
+        }
 
     def print(self, name=None, category=_BASE_CATEGORY):
         if name:
