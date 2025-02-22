@@ -2,10 +2,8 @@
 
 ### **0.x:** Trainable to see if model improves at all
 - fix action NA bug
-- check if all variables needed for training resume are saved
 
 ### **1.0:** Good single stage finish
-- fixed step time
 - check biggest performance hassles (measure class)
 - copy content of tensorboard on model load
 - better rewards
@@ -14,7 +12,7 @@
 
 ### **2.0:** Full linear map and inference
 - multiple reward zones
-- multiple batches before truncated (server 0.01 speed between batches)
+- multiple batches before truncate (server 0.01 speed between batches)
 - advanced ml techniques
     - clipped objective
     - entropy regularization
