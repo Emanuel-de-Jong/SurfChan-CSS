@@ -7,6 +7,7 @@ import gymnasium as gym
 from sc_config import get_config
 from SCEnv import SCEnv, create_torchrl_env
 from SCTrain import SCTrain
+from SCTimer import sc_timer
 
 class MODE(Enum):
     PLAY = 1
@@ -52,6 +53,8 @@ class SurfChan():
         except Exception:
             traceback.print_exc()
         finally:
+            sc_timer.print()
+
             print("Closing...")
             if self.train is not None:
                 self.train.close()

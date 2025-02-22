@@ -15,6 +15,7 @@ from torchrl._utils import compile_with_warmup, timeit
 from sc_config import get_config, CONFIG_FILE_NAME
 from sc_model_utils import get_torch_device, get_models
 from SCEnv import create_torchrl_env
+from SCTimer import sc_timer
 
 class SCTrain():
     async def train(self):
@@ -87,7 +88,7 @@ class SCTrain():
         
         losses = TensorDict(batch_size=[self.loss_conf.ppo_epochs, self.loss_conf.mini_batches_per_batch])
 
-        training_seconds_start = time.time()
+        sc_timer.start("training")
 
         collector_iter = iter(self.collector)
         total_iter = len(self.collector)
@@ -153,9 +154,6 @@ class SCTrain():
             self.collector.update_policy_weights_()
         
         pbar.close()
-
-        training_seconds = time.time() - training_seconds_start
-        print(f"Training time: {training_seconds:.2f}s or {training_seconds/60:.2f}m or {training_seconds/3600:.2f}h")
 
     def update(self, batch):
         self.optim.zero_grad(set_to_none=True)
