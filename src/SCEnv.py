@@ -50,7 +50,7 @@ class SCEnv(gym.Env):
         self.last_total_velocity = 0.0
         self.terminated = False
         self.truncated = False
-        self.is_first_step = True
+        self.time_till_truncate = None
     
     async def init(self, map_name):
         await self.game.init(map_name)
@@ -73,13 +73,9 @@ class SCEnv(gym.Env):
         if self.target_step_time is not None:
             sc_timer.start("real_step")
         
-        if self.is_first_step:
-            self.is_first_step = False
-            self.last_time_till_truncate = time.perf_counter()
-        else:
-            time_till_truncate = time.perf_counter() - self.last_time_till_truncate
-            self.last_time_till_truncate = time.perf_counter()
-            if time_till_truncate >= self.truncate_time:
+        if self.time_till_truncate is None:
+            self.time_till_truncate = time.perf_counter()
+        elif time.perf_counter() - self.time_till_truncate >= self.truncate_time:
                 self.truncated = True
                 obs, _ = self.reset()
                 return obs, 0.0, self.terminated, True, {}

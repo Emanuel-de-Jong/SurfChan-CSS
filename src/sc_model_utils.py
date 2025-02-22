@@ -38,6 +38,7 @@ def get_models(env, device):
         models = create_models(env, device)
         stats.update_count = torch.zeros((), dtype=torch.int64, device=device)
         stats.step_times = []
+        stats.game_speed = config.env.game_speed
 
     return models, stats
 
@@ -63,6 +64,7 @@ def load_latest_models(env, device):
     stats = {}
     stats.update_count = torch.tensor(checkpoint["stats"]["update_count"], dtype=torch.int64, device=device)
     stats.step_times = checkpoint["stats"]["step_times"]
+    stats.game_speed = checkpoint["stats"]["game_speed"]
 
     models_date = datetime.fromtimestamp(os.path.getctime(checkpoint_path)).strftime("%d-%m-%y %H:%M:%S")
     print(f"Loaded models from {models_date} (update count: {stats.update_count.item()})")

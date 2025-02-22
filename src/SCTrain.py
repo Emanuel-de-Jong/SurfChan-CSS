@@ -235,6 +235,7 @@ class SCTrain():
             "stats": {
                 "update_count": self.stats.update_count.item(),
                 "step_times": self.stats.step_times,
+                "game_speed": self.config.env.game_speed,
             },
         }
         torch.save(checkpoint, os.path.join(results_dir, f"{self.date_str}_checkpoint.pth"))
