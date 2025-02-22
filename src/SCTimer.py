@@ -2,45 +2,58 @@ import random
 from time import perf_counter, sleep
 
 class SCTimer():
-    _times = {}
+    _timers = {}
 
     def start(self, name):
-        if not name in self._times:
-            self._times[name] = {
+        if not name in self._timers:
+            self._timers[name] = {
                 "current": 0,
                 "times": []
             }
         
-        self._times[name]["current"] = perf_counter()
+        self._timers[name]["current"] = perf_counter()
     
     def stop(self, name, should_print=False):
-        if not name in self._times:
+        if not name in self._timers:
             return
         
-        time = perf_counter() - self._times[name]["current"]
-        self._times[name]["times"].append(time)
-        self._times[name]["current"] = 0
+        time = perf_counter() - self._timers[name]["current"]
+        self._timers[name]["times"].append(time)
+        self._timers[name]["current"] = 0
 
         if should_print:
             print(f"{name}: {time:.4f}s")
 
     def clear(self, name):
-        self._times[name]["times"] = []
+        self._timers[name]["times"] = []
+
+    def to_dict(self, category=None):
+        timers = self._timers
+        if category:
+            timers = dict(filter(lambda item: item[0].startswith(category), self._timers.items()))
+        
+        timer_dict = {}
+        for name, timer in timers.items():
+            base_name = name.replace(category, "")
+            timer_dict[base_name] = timer["times"][-1]
+        
+        return timer_dict
 
     def print(self, name=None):
         if name:
             self._print_name(name)
         else:
-            for name in self._times:
+            sorted_timers = sorted(self._timers)
+            for name in sorted_timers:
                 self._print_name(name)
 
     def _print_name(self, name):
         top_count = 5
 
-        if self._times[name]["current"] != 0:
+        if self._timers[name]["current"] != 0:
             self.stop(name)
 
-        times = self._times[name]["times"]
+        times = self._timers[name]["times"]
         treshold = sum(times) / len(times) * 100
         times = [time for time in times if time < treshold]
 
@@ -61,7 +74,10 @@ sc_timer = SCTimer()
 
 if __name__ == "__main__":
     for i in range(10):
-        sc_timer.start("test")
+        sc_timer.start("ts:test")
         sleep(random.randrange(1, 10) / 50.0)
-        sc_timer.stop("test")
+        sc_timer.stop("ts:test")
+
+    print(sc_timer.to_dict("ts:"))
+
     sc_timer.print()

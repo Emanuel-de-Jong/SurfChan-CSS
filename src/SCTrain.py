@@ -11,7 +11,7 @@ from torchrl.data import LazyTensorStorage, TensorDictReplayBuffer
 from torchrl.data.replay_buffers.samplers import SamplerWithoutReplacement
 from torchrl.objectives.value import GAE
 from torchrl.record.loggers.tensorboard import TensorboardLogger
-from torchrl._utils import compile_with_warmup, timeit
+from torchrl._utils import compile_with_warmup
 from sc_config import get_config, CONFIG_FILE_NAME
 from sc_model_utils import get_torch_device, get_models
 from SCEnv import create_torchrl_env
@@ -95,8 +95,9 @@ class SCTrain():
         for i in range(total_iter):
             await asyncio.sleep(0.1)
 
-            with timeit("collecting"):
-                data = next(collector_iter)
+            sc_timer.start("tb:collecting")
+            data = next(collector_iter)
+            sc_timer.stop("tb:collecting")
 
             metrics_to_log = {}
             frames_in_batch = data.numel()
@@ -114,26 +115,33 @@ class SCTrain():
                     }
                 )
 
-            with timeit("training"):
-                for j in range(self.loss_conf.ppo_epochs):
-                    with torch.no_grad(), timeit("adv"):
-                        data = adv_module(data)
-                        if compile_mode:
-                            data = data.clone()
-                    with timeit("rb - extend"):
-                        data_reshape = data.reshape(-1)
-                        data_buffer.extend(data_reshape)
+            sc_timer.start("tb:training")
+            for j in range(self.loss_conf.ppo_epochs):
+                with torch.no_grad():
+                    sc_timer.start("tb:adv")
+                    data = adv_module(data)
+                    if compile_mode:
+                        data = data.clone()
+                    sc_timer.stop("tb:adv")
+                
+                sc_timer.start("tb:rb extend")
+                data_reshape = data.reshape(-1)
+                data_buffer.extend(data_reshape)
+                sc_timer.stop("tb:rb extend")
 
-                    for k, batch in enumerate(data_buffer):
-                        if k >= self.loss_conf.mini_batches_per_batch:
-                            break
-                        
-                        with timeit("update"):
-                            loss = self.update(batch)
-                        loss = loss.clone()
-                        losses[j, k] = loss.select(
-                            "loss_critic", "loss_entropy", "loss_objective"
-                        )
+                for k, batch in enumerate(data_buffer):
+                    if k >= self.loss_conf.mini_batches_per_batch:
+                        break
+                    
+                    sc_timer.start("update")
+                    loss = self.update(batch)
+                    sc_timer.stop("update")
+
+                    loss = loss.clone()
+                    losses[j, k] = loss.select(
+                        "loss_critic", "loss_entropy", "loss_objective"
+                    )
+            sc_timer.stop("tb:training")
 
             losses_mean = losses.apply(lambda x: x.float().mean(), batch_size=[])
             for key, value in losses_mean.items():
@@ -146,7 +154,7 @@ class SCTrain():
             )
 
             if logger:
-                metrics_to_log.update(timeit.todict(prefix="time"))
+                metrics_to_log.update(sc_timer.to_dict(prefix="tb:"))
                 metrics_to_log["time/speed"] = pbar.format_dict["rate"]
                 for key, value in metrics_to_log.items():
                     logger.log_scalar(key, value, collected_frames)
