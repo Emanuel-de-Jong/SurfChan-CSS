@@ -6,9 +6,7 @@
 
 ### **1.0:** Good single stage finish
 - fixed step time
-- game speedup
 - check biggest performance hassles (measure class)
-- truncated after x steps
 - copy content of tensorboard on model load
 - better rewards
 - simple model memory

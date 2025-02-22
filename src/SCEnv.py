@@ -27,7 +27,7 @@ class SCEnv(gym.Env):
 
         self.config = get_config()
         self.output_count = self.button_count + self.mouse_count
-        self.target_step_time = 1.0 / self.config.env.steps_per_second
+        self.target_step_time = 1.0 / self.config.env.steps_per_second / self.config.env.game_speed
 
         self._clear_attributes()
 

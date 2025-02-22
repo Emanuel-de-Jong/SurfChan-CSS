@@ -88,7 +88,7 @@ class SCGame:
 
             asyncio.create_task(self.process_messages())
 
-            await self.send_message(MESSAGE_TYPE.INIT, "")
+            await self.send_message(MESSAGE_TYPE.INIT, f"{self.config.env.game_speed}")
 
             while not self.css_process:
                 await asyncio.sleep(0.1)

@@ -36,6 +36,7 @@ enum ACTION_STATE {
 
 Socket g_socket;
 bool g_isConnected = false;
+float g_gameSpeed = 1.0;
 bool g_isStarted = false;
 ACTION_STATE g_actionState = REST;
 bool g_shouldRunAI = false;
@@ -103,7 +104,7 @@ public void OnSocketReceive(Socket socket, char[] receiveData, const int dataSiz
     }
 
     if (messageType == INIT) {
-        HandleInit();
+        HandleInit(messageData);
     } else if (messageType == START) {
         HandleStart(messageData);
     } else if (messageType == STEP) {
@@ -147,7 +148,13 @@ void SendMessage(MESSAGE_TYPE type, const char[] data) {
     }
 }
 
-void HandleInit() {
+void HandleInit(const char[] data) {
+    float gameSpeed = StringToFloat(data);
+    if (gameSpeed != g_gameSpeed) {
+        g_gameSpeed = gameSpeed;
+        SetConVarFloat(FindConVar("host_timescale"), g_gameSpeed);
+    }
+
     char ipStr[32];
     int ip = GetConVarInt(FindConVar("hostip"));
     Format(ipStr, sizeof(ipStr), "%d.%d.%d.%d",
