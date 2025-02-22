@@ -98,7 +98,8 @@ class SCTrain():
             data = next(collector_iter)
             sc_timer.stop("collecting", "tb")
 
-            self.env.env.reset()
+            if i != total_iter - 1:
+                self.env.env.reset()
 
             metrics_to_log = {}
             frames_in_batch = data.numel()
