@@ -19,14 +19,16 @@ from SCEnv import create_torchrl_env
 class SCTrain():
     async def train(self):
         self.config = get_config()
+        self.collector_conf = self.config.train.collector
+        self.optim_conf = self.config.train.optim
+        self.loss_conf = self.config.train.loss
         
         torch.set_float32_matmul_precision("high")
 
         self.device = get_torch_device()
 
-        frames_per_batch = self.config.train.collector.frames_per_batch
+        frames_per_batch = self.collector_conf.frames_per_batch
         total_frames = frames_per_batch * self.config.train.collector.batches
-        mini_batch_size = self.config.train.loss.mini_batch_size
 
         should_compile = self.config.train.should_compile
         compile_mode = False # "reduce-overhead"
@@ -52,7 +54,7 @@ class SCTrain():
                 frames_per_batch, compilable=should_compile, device=self.device
             ),
             sampler=sampler,
-            batch_size=mini_batch_size,
+            batch_size=self.loss_conf.mini_batch_size,
             compilable=should_compile,
         )
 
@@ -72,48 +74,16 @@ class SCTrain():
 
         collected_frames = 0
         pbar = tqdm.tqdm(total=total_frames)
-        num_mini_batches = frames_per_batch // mini_batch_size
-        total_network_updates = (
+        num_mini_batches = frames_per_batch // self.loss_conf.mini_batch_size
+        self.total_network_updates = (
             (total_frames // frames_per_batch) * self.config.train.loss.ppo_epochs * num_mini_batches
         )
 
-        def update(batch):
-            self.optim.zero_grad(set_to_none=True)
-
-            alpha = torch.ones((), device=self.device)
-            if cfg_optim_anneal_lr:
-                alpha = 1 - (self.update_count / total_network_updates)
-                for group in self.optim.param_groups:
-                    group["lr"] = cfg_optim_lr * alpha
-            if cfg_loss_anneal_clip_eps:
-                self.loss_module.clip_epsilon.copy_(cfg_loss_clip_epsilon * alpha)
-            self.update_count += 1
-            
-            batch = batch.to(self.device, non_blocking=True)
-
-            loss = self.loss_module(batch)
-            loss_sum = loss["loss_critic"] + loss["loss_objective"] + loss["loss_entropy"]
-            
-            loss_sum.backward()
-            torch.nn.utils.clip_grad_norm_(
-                self.loss_module.parameters(), max_norm=cfg_optim_max_grad_norm
-            )
-
-            self.optim.step()
-            return loss.detach().set("alpha", alpha)
-
         if should_compile:
-            update = compile_with_warmup(update, mode=compile_mode, warmup=1)
+            self.update = compile_with_warmup(self.update, mode=compile_mode, warmup=1)
             adv_module = compile_with_warmup(adv_module, mode=compile_mode, warmup=1)
-
-        cfg_loss_ppo_epochs = self.config.train.loss.ppo_epochs
-        cfg_optim_anneal_lr = self.config.train.optim.anneal_lr
-        cfg_optim_lr = self.config.train.optim.lr
-        cfg_loss_anneal_clip_eps = self.config.train.loss.anneal_clip_epsilon
-        cfg_loss_clip_epsilon = self.config.train.loss.clip_epsilon
-        cfg_optim_max_grad_norm = self.config.train.optim.max_grad_norm
         
-        losses = TensorDict(batch_size=[cfg_loss_ppo_epochs, num_mini_batches])
+        losses = TensorDict(batch_size=[self.loss_conf.ppo_epochs, num_mini_batches])
 
         training_seconds_start = time.time()
 
@@ -144,7 +114,7 @@ class SCTrain():
                 )
 
             with timeit("training"):
-                for j in range(cfg_loss_ppo_epochs):
+                for j in range(self.loss_conf.ppo_epochs):
                     with torch.no_grad(), timeit("adv"):
                         data = adv_module(data)
                         if compile_mode:
@@ -158,7 +128,7 @@ class SCTrain():
                             break
                         
                         with timeit("update"):
-                            loss = update(batch)
+                            loss = self.update(batch)
                         loss = loss.clone()
                         losses[j, k] = loss.select(
                             "loss_critic", "loss_entropy", "loss_objective"
@@ -169,8 +139,8 @@ class SCTrain():
                 metrics_to_log.update({f"train/{key}": value.item()})
             metrics_to_log.update(
                 {
-                    "train/lr": loss["alpha"] * cfg_optim_lr,
-                    "train/clip_epsilon": loss["alpha"] * cfg_loss_clip_epsilon,
+                    "train/lr": loss["alpha"] * self.optim_conf.lr,
+                    "train/clip_epsilon": loss["alpha"] * self.loss_conf.clip_epsilon,
                 }
             )
 
@@ -186,6 +156,31 @@ class SCTrain():
 
         training_seconds = time.time() - training_seconds_start
         print(f"Training time: {training_seconds:.2f}s or {training_seconds/60:.2f}m or {training_seconds/3600:.2f}h")
+
+    def update(self, batch):
+        self.optim.zero_grad(set_to_none=True)
+
+        alpha = torch.ones((), device=self.device)
+        if self.optim_conf.anneal_lr:
+            alpha = 1 - (self.update_count / self.total_network_updates)
+            for group in self.optim.param_groups:
+                group["lr"] = self.optim_conf.lr * alpha
+        if self.loss_conf.anneal_clip_epsilon:
+            self.loss_module.clip_epsilon.copy_(self.loss_conf.clip_epsilon * alpha)
+        self.update_count += 1
+        
+        batch = batch.to(self.device, non_blocking=True)
+
+        loss = self.loss_module(batch)
+        loss_sum = loss["loss_critic"] + loss["loss_objective"] + loss["loss_entropy"]
+        
+        loss_sum.backward()
+        torch.nn.utils.clip_grad_norm_(
+            self.loss_module.parameters(), max_norm=self.optim_conf.max_grad_norm
+        )
+
+        self.optim.step()
+        return loss.detach().set("alpha", alpha)
 
     def close(self):
         self.save()
