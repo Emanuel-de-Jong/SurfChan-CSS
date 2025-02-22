@@ -110,16 +110,10 @@ def create_models(env, device):
         out_keys=["loc", "scale"],
     )
 
-    spec = Composite(
-        action=Bounded(
-            low=0.0, high=1.0, shape=(num_outputs,), dtype=torch.float32, device=device
-        )
-    )
-
     policy_module = ProbabilisticActor(
         policy_module,
         in_keys=["loc", "scale"],
-        spec=spec,
+        spec=env.action_spec.to(device),
         distribution_class=TanhNormal,
         distribution_kwargs={
             "low": 0.0,

@@ -6,8 +6,8 @@ infer:
 
 train:
   map: beginner
-  should_resume: True
-  should_save: True
+  should_resume: False
+  should_save: False
   should_compile: False
   collector:
     # TODO: Change to 500
