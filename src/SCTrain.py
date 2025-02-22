@@ -28,7 +28,7 @@ class SCTrain():
         self.device = get_torch_device()
 
         frames_per_batch = self.collector_conf.frames_per_batch
-        total_frames = frames_per_batch * self.config.train.collector.batches
+        total_frames = frames_per_batch * self.collector_conf.batches
 
         should_compile = self.config.train.should_compile
         compile_mode = "reduce-overhead" if should_compile else None
@@ -60,8 +60,8 @@ class SCTrain():
         )
 
         adv_module = GAE(
-            gamma=self.config.train.loss.gamma,
-            lmbda=self.config.train.loss.gae_lambda,
+            gamma=self.loss_conf.gamma,
+            lmbda=self.loss_conf.gae_lambda,
             value_network=self.critic,
             average_gae=False,
             device=self.device,
@@ -77,7 +77,7 @@ class SCTrain():
         pbar = tqdm.tqdm(total=total_frames)
         self.total_network_updates = (
             (total_frames // frames_per_batch) *
-            self.config.train.loss.ppo_epochs *
+            self.loss_conf.ppo_epochs *
             self.loss_conf.mini_batches_per_batch
         )
 

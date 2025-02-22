@@ -61,7 +61,7 @@ class SCEnv(gym.Env):
         if self.step_count >= self.config.env.frames_for_finish:
             self.terminated = True
             obs, _ = self.reset()
-            return obs, 0.0, False, self.truncated, {}
+            return obs, 0.0, True, self.truncated, {}
 
         obs, player_pos, total_velocity = self._game_step(action)
         reward = self._calc_reward(player_pos, total_velocity)
