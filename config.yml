@@ -37,8 +37,8 @@ model:
 env:
   name: SurfChan
   game_speed: 2.0
-  steps_per_second: 10
-  steps_for_finish: 150
+  steps_per_second: 12
+  seconds_to_finish: 6
 
 css:
   close_on_script_close: True

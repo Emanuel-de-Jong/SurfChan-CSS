@@ -154,7 +154,9 @@ class SCTrain():
             )
 
             if logger:
-                metrics_to_log.update(sc_timer.to_dict("tb", "time/"))
+                time_dict = sc_timer.to_dict("tb", "time/")
+                time_dict["time/avg_step"] = self.get_avg_step_time()
+                metrics_to_log.update(time_dict)
                 metrics_to_log["time/speed"] = pbar.format_dict["rate"]
                 for key, value in metrics_to_log.items():
                     logger.log_scalar(key, value, collected_frames)
@@ -187,6 +189,18 @@ class SCTrain():
 
         self.optim.step()
         return loss.detach().set("alpha", alpha)
+    
+    def get_avg_step_time(self):
+        step_times = sc_timer.get("step")
+        sc_timer.clear("step")
+
+        # Last step is always longer because it includes collector finish time
+        step_times.pop()
+        avg_step_time = sum(step_times) / len(step_times)
+
+        treshold = avg_step_time * 2
+        step_times = [time for time in step_times if time < treshold]
+        return sum(step_times) / len(step_times)
 
     def close(self):
         self.save()

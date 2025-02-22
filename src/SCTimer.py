@@ -28,11 +28,18 @@ class SCTimer():
         
         return elapsed_time
     
-    def get_latest(self, name, category=_BASE_CATEGORY):
+    def get(self, name, category=_BASE_CATEGORY):
         if category not in self._timers or name not in self._timers[category]:
             return None
         
-        return self._timers[category][name]["times"][-1]
+        timer = self._timers[category][name]
+        if timer["current"] != 0:
+            self.stop(name, category)
+        
+        return timer["times"]
+    
+    def get_latest(self, name, category=_BASE_CATEGORY):
+        return self.get(name, category)[-1]
 
     def clear(self, name, category=_BASE_CATEGORY):
         self._timers[category][name]["times"] = []

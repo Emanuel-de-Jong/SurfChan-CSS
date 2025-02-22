@@ -18,6 +18,7 @@ from SCGame import SCGame
 from SCTimer import sc_timer
 
 class SCEnv(gym.Env):
+    is_training = True
     button_count = 6
     mouse_count = 2
     button_model_to_game = ["f", "b", "l", "r", "j", "c"]
@@ -27,7 +28,13 @@ class SCEnv(gym.Env):
 
         self.config = get_config()
         self.output_count = self.button_count + self.mouse_count
-        self.target_step_time = 1.0 / self.config.env.steps_per_second / self.config.env.game_speed
+
+        self.steps_to_finish = self.config.env.steps_per_second * self.config.env.seconds_to_finish
+
+        steps_per_second = self.config.env.steps_per_second
+        # Steps are never shorter than target_step_time but occasionally longer. This balances it out.
+        steps_per_second += int(steps_per_second * 0.15)
+        self.target_step_time = 1.0 / steps_per_second / self.config.env.game_speed
 
         self._clear_attributes()
 
@@ -54,30 +61,27 @@ class SCEnv(gym.Env):
         await self.game.init(map_name)
 
     def step(self, action):
-        between_step_time = sc_timer.stop("between_step")
-        sc_timer.stop("target_step_time")
-        sc_timer.start("target_step_time")
+        if not self.is_training:
+            step_time = sc_timer.stop("real_step")
+            if step_time:
+                remaining_time = self.target_step_time - step_time
+                if remaining_time > 0.0:
+                    time.sleep(remaining_time)
+
+        sc_timer.stop("step")
         sc_timer.start("step")
 
+        if not self.is_training:
+            sc_timer.start("real_step")
+
         self.step_count += 1
-        if self.step_count >= self.config.env.steps_for_finish:
+        if self.step_count >= self.steps_to_finish:
             self.terminated = True
             obs, _ = self.reset()
             return obs, 0.0, True, self.truncated, {}
 
         obs, player_pos, total_velocity = self._game_step(action)
         reward = self._calc_reward(player_pos, total_velocity)
-        
-        step_time = sc_timer.stop("step")
-
-        remaining_time = self.target_step_time - step_time
-        if between_step_time:
-            remaining_time -= between_step_time
-        
-        if remaining_time > 0:
-            time.sleep(remaining_time)
-
-        sc_timer.start("between_step")
 
         return obs, reward, self.terminated, self.truncated, {}
     
@@ -153,7 +157,7 @@ def create_torchrl_env(map, base_only=False):
         env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
         env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
         env.append_transform(RewardSum())
-        env.append_transform(StepCounter(max_steps=config.env.steps_for_finish))
+        env.append_transform(StepCounter(max_steps=config.env.steps_per_second * config.env.seconds_to_finish))
         # env.append_transform(DoubleToFloat())
         env.append_transform(VecNorm(in_keys=["pixels"]))
     
