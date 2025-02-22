@@ -94,8 +94,6 @@ class SCTrain():
         for i in range(total_iter):
             await asyncio.sleep(0.1)
 
-            timeit.printevery(1000, total_iter, erase=True)
-
             with timeit("collecting"):
                 data = next(collector_iter)
 
