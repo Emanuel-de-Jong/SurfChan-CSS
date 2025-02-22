@@ -16,6 +16,28 @@ from torchrl.modules import (
     NormalParamExtractor
 )
 
+class SCModels():
+    actor=None
+    critic=None
+    loss_module=None
+    optim=None
+
+    def __init__(self, actor=None, critic=None, loss_module=None, optim=None):
+        self.actor = actor
+        self.critic = critic
+        self.loss_module = loss_module
+        self.optim = optim
+
+class SCStats():
+    update_count=None
+    step_times=None
+    game_speed=None
+
+    def __init__(self, update_count=None, step_times=None, game_speed=None):
+        self.update_count = update_count
+        self.step_times = step_times
+        self.game_speed = game_speed
+
 config = get_config()
 
 torch_device = None
@@ -29,13 +51,15 @@ def get_torch_device():
 
 def get_models(env, device):
     global config
-    models, stats = {}, {}
+    models, stats = None, None
     if config.train.should_resume:
         models, stats = load_latest_models(env, device)
 
-    if models.actor is None:
+    if models is None:
         print(f"Created new models")
         models = create_models(env, device)
+
+        stats = SCStats()
         stats.update_count = torch.zeros((), dtype=torch.int64, device=device)
         stats.step_times = []
         stats.game_speed = config.env.game_speed
@@ -61,7 +85,7 @@ def load_latest_models(env, device):
     models.critic.load_state_dict(checkpoint["models"]["critic"])
     models.optim.load_state_dict(checkpoint["models"]["optim"])
 
-    stats = {}
+    stats = SCStats()
     stats.update_count = torch.tensor(checkpoint["stats"]["update_count"], dtype=torch.int64, device=device)
     stats.step_times = checkpoint["stats"]["step_times"]
     stats.game_speed = checkpoint["stats"]["game_speed"]
@@ -179,4 +203,4 @@ def create_models(env, device):
         eps=config.train.optim.eps,
     )
 
-    return {actor, critic, loss_module, optim}
+    return SCModels(actor, critic, loss_module, optim)

@@ -105,14 +105,7 @@ class SCTrain():
 
             episode_rewards = data["next", "episode_reward"][data["next", "terminated"]]
             if len(episode_rewards) > 0:
-                episode_length = data["next", "step_count"][data["next", "terminated"]]
-                metrics_to_log.update(
-                    {
-                        "train/reward": episode_rewards.mean().item(),
-                        "train/episode_length": episode_length.sum().item()
-                        / len(episode_length),
-                    }
-                )
+                metrics_to_log.update({"train/reward": episode_rewards.mean().item()})
 
             sc_timer.start("training", "tb")
             for j in range(self.loss_conf.ppo_epochs):
@@ -132,9 +125,9 @@ class SCTrain():
                     if k >= self.loss_conf.mini_batches_per_batch:
                         break
                     
-                    sc_timer.start("update")
+                    sc_timer.start("update", "tb")
                     loss = self.update(batch)
-                    sc_timer.stop("update")
+                    sc_timer.stop("update", "tb")
 
                     loss = loss.clone()
                     losses[j, k] = loss.select(
