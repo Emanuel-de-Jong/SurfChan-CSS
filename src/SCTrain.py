@@ -31,9 +31,9 @@ class SCTrain():
         total_frames = frames_per_batch * self.config.train.collector.batches
 
         should_compile = self.config.train.should_compile
-        compile_mode = False # "reduce-overhead"
+        compile_mode = "reduce-overhead" if should_compile else None
         
-        self.env = create_torchrl_env(self.config.env.name, self.config.train.map)
+        self.env = create_torchrl_env(self.config.train.map)
         
         self.actor, self.critic, self.loss_module, self.optim, self.update_count = \
             get_models(self.env, self.device)
@@ -44,7 +44,7 @@ class SCTrain():
             frames_per_batch=frames_per_batch,
             total_frames=total_frames,
             device=self.device,
-            max_frames_per_traj=frames_per_batch,
+            max_frames_per_traj=-1,
             compile_policy={"mode": compile_mode, "warmup": 1} if compile_mode else False
         )
 

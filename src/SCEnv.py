@@ -57,6 +57,10 @@ class SCEnv(gym.Env):
         # print(f"Seconds between step: {sec_between_step - self.last_sec_between_step}")
         # self.last_sec_between_step = sec_between_step
 
+        if self.truncated:
+            obs, _ = self.reset()
+            return obs, 0.0, self.done, self.truncated, {}
+
         obs, player_pos, total_velocity = self._game_step(action)
         reward = self._calc_reward(player_pos, total_velocity)
 
@@ -126,13 +130,17 @@ class SCEnv(gym.Env):
         if self.game:
             self.game.close()
 
-def create_torchrl_env(name, map, base_only=False):
-    env = GymEnv(name)
+config = get_config()
+def create_torchrl_env(map, base_only=False):
+    global config
+
+    env = GymEnv(config.env.name)
     env = TransformedEnv(env).to(get_torch_device())
     if not base_only:
         env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
         env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
         env.append_transform(RewardSum())
+        env.append_transform(StepCounter(max_steps=config.env.frames_for_finish))
         # env.append_transform(DoubleToFloat())
         env.append_transform(VecNorm(in_keys=["pixels"]))
     

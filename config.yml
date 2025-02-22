@@ -36,6 +36,7 @@ model:
 
 env:
   name: SurfChan
+  frames_for_finish: 150
 
 # game:
 
