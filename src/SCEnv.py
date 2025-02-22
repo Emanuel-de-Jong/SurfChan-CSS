@@ -76,34 +76,34 @@ class SCEnv(gym.Env):
 
     def _calc_reward(self, player_pos, total_velocity):
         reward = -0.1
+        map = self.game.map
+        axis = map.axis
         
         if self.last_player_dist is None:
-            self.last_player_dist = abs(self.game.map.start_pos[self.game.map.axis] - self.game.map.finish_pos[self.game.map.axis])
+            self.last_player_dist = abs(map.start_pos[axis] - map.finish_pos[axis])
         
-        player_dist = abs(player_pos[self.game.map.axis] - self.game.map.finish_pos[self.game.map.axis])
-
+        player_dist = abs(player_pos[axis] - map.finish_pos[axis])
         if player_dist < self.last_player_dist:
-            reward += 0.1
+            reward += 1
         else:
-            reward -= 0.1
+            reward -= 1
         
-        self.last_player_dist = player_dist
-
         if total_velocity > self.last_total_velocity:
-            reward += 0.1
+            reward += 1
         else:
-            reward -= 0.1
-        
-        self.last_total_velocity = total_velocity
+            reward -= 1
 
         if self.last_player_dist < 25.0:
             self.done = True
             self.terminated = True
-            reward = 15.0
-        elif player_pos[2] <= self.game.map.ground:
+            reward += 25.0
+        elif player_pos[2] <= map.ground:
             self.done = True
             self.terminated = True
-            reward = -5.0
+            reward -= 10.0
+
+        self.last_player_dist = player_dist
+        self.last_total_velocity = total_velocity
 
         return reward
 
