@@ -7,7 +7,8 @@ infer:
 train:
   map: beginner
   should_resume: True
-  compile: False
+  should_save: True
+  should_compile: False
   collector:
     frames_per_batch: 150
     batches: 2

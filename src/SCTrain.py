@@ -13,8 +13,7 @@ from torchrl.objectives.value import GAE
 from torchrl.record.loggers.tensorboard import TensorboardLogger
 from torchrl._utils import compile_with_warmup, timeit
 from sc_config import get_config, CONFIG_FILE_NAME
-from sc_utils import get_torch_device
-from sc_model_utils import get_models
+from sc_model_utils import get_torch_device, get_models
 from SCEnv import create_torchrl_env
 
 class SCTrain():
@@ -29,7 +28,7 @@ class SCTrain():
         total_frames = frames_per_batch * self.config.train.collector.batches
         mini_batch_size = self.config.train.loss.mini_batch_size
 
-        should_compile = self.config.train.compile
+        should_compile = self.config.train.should_compile
         compile_mode = False # "reduce-overhead"
         
         self.env = create_torchrl_env(self.config.env.name, self.config.train.map)
@@ -67,7 +66,9 @@ class SCTrain():
         )
 
         self.date_str = datetime.now().strftime("%d-%m_%H-%M")
-        logger = TensorboardLogger(exp_name=self.date_str, log_dir=f"{self.config.model.results_dir}/logs")
+        logger = None
+        if self.config.train.should_save:
+            logger = TensorboardLogger(exp_name=self.date_str, log_dir=f"{self.config.model.results_dir}/logs")
 
         collected_frames = 0
         pbar = tqdm.tqdm(total=total_frames)
@@ -193,6 +194,9 @@ class SCTrain():
             self.collector.shutdown()
 
     def save(self):
+        if not self.config.train.should_save:
+            return
+
         if self.actor is None or self.critic is None or self.optim is None \
                 or self.update_count is None or self.date_str is None:
             return

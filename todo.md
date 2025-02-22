@@ -31,8 +31,8 @@
 
 ### **Tweaks and QoL**
 - tensorboard more meaningful stats
+- convert batch files to powershell scripts
 - discrete output for buttons
-- fix plugin angle return bug
 - more nn input (angle, isCrouch)
 - fix stuttery mouse movement
 - CSS always on top

@@ -18,6 +18,15 @@ from torchrl.modules import (
 
 config = get_config()
 
+torch_device = None
+def get_torch_device():
+    global torch_device
+    if torch_device is None:
+        torch_device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
+        print(f"Using torch device: {torch_device}")
+    
+    return torch_device
+
 def get_models(env, device):
     global config
     actor, critic, loss_module, optim, update_count = None, None, None, None, None

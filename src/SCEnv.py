@@ -11,7 +11,8 @@ from torchrl.envs import (
     RewardSum
 )
 from torchrl.envs.libs.gym import GymEnv
-from sc_utils import run_async, get_torch_device
+from sc_utils import run_async
+from sc_model_utils import get_torch_device
 from sc_config import get_config
 from SCGame import SCGame
 
