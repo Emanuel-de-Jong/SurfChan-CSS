@@ -10,6 +10,7 @@ train:
   should_save: True
   should_compile: False
   collector:
+    # TODO: Change to 500
     frames_per_batch: 150
     batches: 2
   optim:
@@ -19,7 +20,7 @@ train:
     max_grad_norm: 0.5
     anneal_lr: True
   loss:
-    mini_batch_size: 25
+    mini_batches_per_batch: 4
     gamma: 0.99
     ppo_epochs: 3
     gae_lambda: 0.95

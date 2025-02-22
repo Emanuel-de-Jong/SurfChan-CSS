@@ -48,13 +48,14 @@ class SCTrain():
             compile_policy={"mode": compile_mode, "warmup": 1} if compile_mode else False
         )
 
+        mini_batch_size = frames_per_batch // self.loss_conf.mini_batches_per_batch
         sampler = SamplerWithoutReplacement()
         data_buffer = TensorDictReplayBuffer(
             storage=LazyTensorStorage(
                 frames_per_batch, compilable=should_compile, device=self.device
             ),
             sampler=sampler,
-            batch_size=self.loss_conf.mini_batch_size,
+            batch_size=mini_batch_size,
             compilable=should_compile,
         )
 
@@ -74,16 +75,17 @@ class SCTrain():
 
         collected_frames = 0
         pbar = tqdm.tqdm(total=total_frames)
-        num_mini_batches = frames_per_batch // self.loss_conf.mini_batch_size
         self.total_network_updates = (
-            (total_frames // frames_per_batch) * self.config.train.loss.ppo_epochs * num_mini_batches
+            (total_frames // frames_per_batch) *
+            self.config.train.loss.ppo_epochs *
+            self.loss_conf.mini_batches_per_batch
         )
 
         if should_compile:
             self.update = compile_with_warmup(self.update, mode=compile_mode, warmup=1)
             adv_module = compile_with_warmup(adv_module, mode=compile_mode, warmup=1)
         
-        losses = TensorDict(batch_size=[self.loss_conf.ppo_epochs, num_mini_batches])
+        losses = TensorDict(batch_size=[self.loss_conf.ppo_epochs, self.loss_conf.mini_batches_per_batch])
 
         training_seconds_start = time.time()
 
@@ -124,7 +126,7 @@ class SCTrain():
                         data_buffer.extend(data_reshape)
 
                     for k, batch in enumerate(data_buffer):
-                        if k >= num_mini_batches:
+                        if k >= self.loss_conf.mini_batches_per_batch:
                             break
                         
                         with timeit("update"):
