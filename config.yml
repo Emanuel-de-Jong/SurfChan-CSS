@@ -36,7 +36,8 @@ model:
 
 env:
   name: SurfChan
-  frames_for_finish: 150
+  steps_per_second: 15
+  steps_for_finish: 150
 
 # game:
 

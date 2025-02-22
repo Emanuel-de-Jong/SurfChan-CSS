@@ -27,6 +27,7 @@ class SCEnv(gym.Env):
 
         self.config = get_config()
         self.output_count = self.button_count + self.mouse_count
+        self.target_step_time = 1.0 / self.config.env.steps_per_second
 
         self._clear_attributes()
 
@@ -53,11 +54,13 @@ class SCEnv(gym.Env):
         await self.game.init(map_name)
 
     def step(self, action):
-        sc_timer.stop("between_step")
+        between_step_time = sc_timer.stop("between_step")
+        sc_timer.stop("target_step_time")
+        sc_timer.start("target_step_time")
         sc_timer.start("step")
 
         self.step_count += 1
-        if self.step_count >= self.config.env.frames_for_finish:
+        if self.step_count >= self.config.env.steps_for_finish:
             self.terminated = True
             obs, _ = self.reset()
             return obs, 0.0, True, self.truncated, {}
@@ -65,7 +68,15 @@ class SCEnv(gym.Env):
         obs, player_pos, total_velocity = self._game_step(action)
         reward = self._calc_reward(player_pos, total_velocity)
         
-        sc_timer.stop("step")
+        step_time = sc_timer.stop("step")
+
+        remaining_time = self.target_step_time - step_time
+        if between_step_time:
+            remaining_time -= between_step_time
+        
+        if remaining_time > 0:
+            time.sleep(remaining_time)
+
         sc_timer.start("between_step")
 
         return obs, reward, self.terminated, self.truncated, {}
@@ -142,7 +153,7 @@ def create_torchrl_env(map, base_only=False):
         env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
         env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
         env.append_transform(RewardSum())
-        env.append_transform(StepCounter(max_steps=config.env.frames_for_finish))
+        env.append_transform(StepCounter(max_steps=config.env.steps_for_finish))
         # env.append_transform(DoubleToFloat())
         env.append_transform(VecNorm(in_keys=["pixels"]))
     

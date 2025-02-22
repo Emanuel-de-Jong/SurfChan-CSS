@@ -16,7 +16,7 @@ class SCTimer():
     
     def stop(self, name, category=_BASE_CATEGORY, should_print=False):
         if category not in self._timers or name not in self._timers[category]:
-            return
+            return None
         
         timer = self._timers[category][name]
         elapsed_time = perf_counter() - timer["current"]
@@ -25,6 +25,14 @@ class SCTimer():
 
         if should_print:
             print(f"{name}: {elapsed_time:.4f}s")
+        
+        return elapsed_time
+    
+    def get_latest(self, name, category=_BASE_CATEGORY):
+        if category not in self._timers or name not in self._timers[category]:
+            return None
+        
+        return self._timers[category][name]["times"][-1]
 
     def clear(self, name, category=_BASE_CATEGORY):
         self._timers[category][name]["times"] = []
