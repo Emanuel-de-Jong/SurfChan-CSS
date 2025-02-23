@@ -1,11 +1,6 @@
 # TODO
 
 ### **0.x:** Trainable to see if model improves at all
-- check screenshots
-    - right place
-    - different over time
-    - right color mode
-    - right size
 - check lr change
     - starting too low
     - going low too fast

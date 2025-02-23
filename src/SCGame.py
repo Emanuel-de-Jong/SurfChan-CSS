@@ -233,7 +233,7 @@ class SCGame:
 
         with mss.mss() as sct:
             pixels = np.array(sct.grab(self.css_window_size))
-            pixels = cv2.cvtColor(pixels, cv2.COLOR_RGBA2RGB)
+            pixels = cv2.cvtColor(pixels, cv2.COLOR_BGRA2RGB)
         
         return pixels, player_pos, total_velocity
 
