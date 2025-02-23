@@ -1,5 +1,22 @@
 # TODO
 
+### **0.x:** Trainable to see if model improves at all
+- check screenshots
+    - right place
+    - different over time
+    - right color mode
+    - right size
+- check lr change
+    - starting too low
+    - going low too fast
+- check reward system
+    - is mouse movement velocity
+    - check map axis
+    - multiply to reward higher change
+    - higher overall reward closer to finish
+- check value/critic model broken (does it even try to get better reward?)
+- check sample_log_prob clamp not breaking
+
 ### **1.0:** Good single stage finish
 - less vram usage
 - check biggest performance hassles (measure class)
