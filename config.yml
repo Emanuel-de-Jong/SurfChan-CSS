@@ -10,7 +10,7 @@ train:
   should_save: False
   should_compile: False
   collector:
-    # TODO: Change to 500
+    # TODO: Change to 300
     frames_per_batch: 50
     batches: 2
   optim:

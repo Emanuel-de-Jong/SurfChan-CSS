@@ -1,6 +1,7 @@
 # TODO
 
 ### **1.0:** Good single stage finish
+- less vram usage
 - check biggest performance hassles (measure class)
 - copy content of tensorboard on model load
 - better rewards
