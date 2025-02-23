@@ -1,6 +1,7 @@
 # TODO
 
 ### **0.x:** Trainable to see if model improves at all
+- check CNN input matches screenshot
 - check lr change
     - starting too low
     - going low too fast

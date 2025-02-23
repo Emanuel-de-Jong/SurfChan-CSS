@@ -83,6 +83,8 @@ class SCEnv(gym.Env):
         obs, player_pos, total_velocity = self._game_step(action)
         reward = self._calc_reward(player_pos, total_velocity)
 
+        # print(obs)
+
         return obs, reward, self.terminated, self.truncated, {}
     
     def _game_step(self, action):
@@ -155,7 +157,7 @@ def create_torchrl_env(map, base_only=False):
     env = TransformedEnv(env).to(get_torch_device())
     if not base_only:
         env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
-        env.append_transform(ToTensorImage(in_keys=["pixels_int"], out_keys=["pixels"]))
+        env.append_transform(ToTensorImage(from_int=True, in_keys=["pixels_int"], out_keys=["pixels"]))
         env.append_transform(RewardSum())
         # env.append_transform(DoubleToFloat())
         env.append_transform(VecNorm(in_keys=["pixels"]))
