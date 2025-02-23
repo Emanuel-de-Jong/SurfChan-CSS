@@ -7,7 +7,5 @@ pywin32
 pyyaml
 tensorboard
 tensordict
-torch
 torchrl
-torchvision
 tqdm

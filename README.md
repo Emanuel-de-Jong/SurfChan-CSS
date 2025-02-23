@@ -9,7 +9,8 @@ Training and inference pipeline for a PPO model that can play Source Engine [sur
 
 ### Setup
 - Install Python packages `pip install -r requirements.txt`.
-    - For GPUs that have CUDA, do this first `pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118`.
+    - For GPUs with CUDA: `pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118`
+    - For others, CPU is used: `pip install torch torchvision`
 - Setup server `css_server/create.md`.
 - Copy `config_user_template.yml` and rename it to `config_user.yml`. Then change the values.
 - Turn off Steam Overlay for CSS.
@@ -31,7 +32,7 @@ Training and inference pipeline for a PPO model that can play Source Engine [sur
 ### Socket format
 `TYPE_INT:ITEM_1_VAL,ITEM_1_VAL;ITEM_2_VAL,ITEM_2_VAL`
 
-### Inference Output
+### Env output
 **Buttons**
 f: forward
 b: back
@@ -42,4 +43,7 @@ c: crouch
 
 **Mouse**
 -180.00 - 180.00: mouse x
--180.00 - 180.00: mouse y (not AI)
+-90.00 - 90.00: mouse y
+
+### Inference output
+An array of 8 floats between 0.0 and 1.0 representing f to c and then mouse x and y.
