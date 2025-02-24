@@ -21,7 +21,7 @@ class SCTrain():
     async def train(self):
         self.config = get_config()
         self.collector_conf = self.config.train.collector
-        self.optim_conf = self.config.train.optim
+        self.optimizer_conf = self.config.train.optimizer
         self.loss_conf = self.config.train.loss
         
         torch.set_float32_matmul_precision("high")
@@ -59,7 +59,7 @@ class SCTrain():
             compilable=should_compile,
         )
 
-        adv_module = GAE(
+        advantage_module = GAE(
             gamma=self.loss_conf.gamma,
             lmbda=self.loss_conf.gae_lambda,
             value_network=self.models.critic,
@@ -83,7 +83,7 @@ class SCTrain():
 
         if should_compile:
             self.update = compile_with_warmup(self.update, mode=compile_mode, warmup=1)
-            adv_module = compile_with_warmup(adv_module, mode=compile_mode, warmup=1)
+            advantage_module = compile_with_warmup(advantage_module, mode=compile_mode, warmup=1)
         
         losses = TensorDict(batch_size=[self.loss_conf.ppo_epochs, self.loss_conf.mini_batches_per_batch])
 
@@ -113,11 +113,11 @@ class SCTrain():
             sc_timer.start("training", "tb")
             for j in range(self.loss_conf.ppo_epochs):
                 with torch.no_grad():
-                    sc_timer.start("adv", "tb")
-                    data = adv_module(data)
+                    sc_timer.start("advantage", "tb")
+                    data = advantage_module(data)
                     if compile_mode:
                         data = data.clone()
-                    sc_timer.stop("adv", "tb")
+                    sc_timer.stop("advantage", "tb")
                 
                 sc_timer.start("rb extend", "tb")
                 data_reshape = data.reshape(-1)
@@ -143,7 +143,7 @@ class SCTrain():
                 metrics_to_log.update({f"train/{key}": value.item()})
             metrics_to_log.update(
                 {
-                    "train/lr": loss["alpha"] * self.optim_conf.lr,
+                    "train/lr": loss["alpha"] * self.optimizer_conf.lr,
                     "train/clip_epsilon": loss["alpha"] * self.loss_conf.clip_epsilon,
                 }
             )
@@ -164,13 +164,13 @@ class SCTrain():
         pbar.close()
 
     def update(self, batch):
-        self.models.optim.zero_grad(set_to_none=True)
+        self.models.optimizer.zero_grad(set_to_none=True)
 
         alpha = torch.ones((), device=self.device)
-        if self.optim_conf.anneal_lr:
+        if self.optimizer_conf.anneal_lr:
             alpha = 1 - (self.stats.update_count / self.total_network_updates)
-            for group in self.models.optim.param_groups:
-                group["lr"] = self.optim_conf.lr * alpha
+            for group in self.models.optimizer.param_groups:
+                group["lr"] = self.optimizer_conf.lr * alpha
         if self.loss_conf.anneal_clip_epsilon:
             self.models.loss_module.clip_epsilon.copy_(self.loss_conf.clip_epsilon * alpha)
         self.stats.update_count += 1
@@ -185,10 +185,10 @@ class SCTrain():
         
         loss_sum.backward()
         torch.nn.utils.clip_grad_norm_(
-            self.models.loss_module.parameters(), max_norm=self.optim_conf.max_grad_norm
+            self.models.loss_module.parameters(), max_norm=self.optimizer_conf.max_gradient_norm
         )
 
-        self.models.optim.step()
+        self.models.optimizer.step()
         return loss.detach().set("alpha", alpha)
     
     def get_avg_batch_step_time(self):
@@ -213,7 +213,7 @@ class SCTrain():
         if not self.config.train.should_save:
             return
 
-        if self.models.actor is None or self.models.critic is None or self.models.optim is None \
+        if self.models.actor is None or self.models.critic is None or self.models.optimizer is None \
                 or self.stats.update_count is None or self.date_str is None \
                 or self.stats.step_times is None:
             return
@@ -229,7 +229,7 @@ class SCTrain():
             "models": {
                 "actor": self.models.actor.state_dict(),
                 "critic": self.models.critic.state_dict(),
-                "optim": self.models.optim.state_dict(),
+                "optimizer": self.models.optimizer.state_dict(),
             },
             "stats": {
                 "update_count": self.stats.update_count.item(),

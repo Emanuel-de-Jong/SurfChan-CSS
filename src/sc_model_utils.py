@@ -20,13 +20,13 @@ class SCModels():
     actor=None
     critic=None
     loss_module=None
-    optim=None
+    optimizer=None
 
-    def __init__(self, actor=None, critic=None, loss_module=None, optim=None):
+    def __init__(self, actor=None, critic=None, loss_module=None, optimizer=None):
         self.actor = actor
         self.critic = critic
         self.loss_module = loss_module
-        self.optim = optim
+        self.optimizer = optimizer
 
 class SCStats():
     update_count=None
@@ -83,7 +83,7 @@ def load_latest_models(env, device):
     models = create_models(env, device)
     models.actor.load_state_dict(checkpoint["models"]["actor"])
     models.critic.load_state_dict(checkpoint["models"]["critic"])
-    models.optim.load_state_dict(checkpoint["models"]["optim"])
+    models.optimizer.load_state_dict(checkpoint["models"]["optimizer"])
 
     stats = SCStats()
     stats.update_count = torch.tensor(checkpoint["stats"]["update_count"], dtype=torch.int64, device=device)
@@ -204,16 +204,16 @@ def create_models(env, device):
         critic_network=critic,
         clip_epsilon=config.train.loss.clip_epsilon,
         loss_critic_type=config.train.loss.loss_critic_type,
-        entropy_coef=config.train.loss.entropy_coef,
-        critic_coef=config.train.loss.critic_coef,
+        entropy_coef=config.train.loss.entropy_coefficient,
+        critic_coef=config.train.loss.critic_coefficient,
         normalize_advantage=True,
     )
 
-    optim = torch.optim.Adam(
+    optimizer = torch.optim.Adam(
         loss_module.parameters(),
-        lr=config.train.optim.lr,
-        weight_decay=config.train.optim.weight_decay,
-        eps=config.train.optim.eps,
+        lr=config.train.optimizer.lr,
+        weight_decay=config.train.optimizer.weight_decay,
+        eps=config.train.optimizer.epsilon,
     )
 
-    return SCModels(actor, critic, loss_module, optim)
+    return SCModels(actor, critic, loss_module, optimizer)

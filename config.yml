@@ -13,22 +13,22 @@ train:
     # TODO: Change to 300
     frames_per_batch: 50
     batches: 2
-  optim:
+  optimizer:
     lr: 0.00025
-    eps: 0.000001
-    weight_decay: 0.0
-    max_grad_norm: 0.5
-    anneal_lr: True
+    epsilon: 0.000001 # Small value added to numbers in optimizers to prevent division by zero.
+    weight_decay: 0.0 # Discourages large weights to prevent overfitting. 0.0 means unused.
+    max_gradient_norm: 0.5 # For gradient clipping to prevent exploding gradients by capping their norm.
+    anneal_lr: True # Gradually reduces the learning rate during training.
   loss:
     mini_batches_per_batch: 4
-    gamma: 0.99
-    ppo_epochs: 3
-    gae_lambda: 0.95
-    clip_epsilon: 0.1
-    anneal_clip_epsilon: True
-    critic_coef: 1.0
-    entropy_coef: 0.01
-    loss_critic_type: l2
+    gamma: 0.99 # Higher means future rewards are valued more than immediate rewards.
+    ppo_epochs: 3 # Number of times each mini batch is used during training.
+    gae_lambda: 0.95 # Smoothens GAE, changing bias vs variance balance in advantage. High value is high variance.
+    clip_epsilon: 0.1 # Controls clipping range to prevent drastic changes.
+    anneal_clip_epsilon: True # Reduces clipping value over time to gradually make adjustments smaller.
+    critic_coefficient: 1.0 # How much the critic loss contributes to the total loss.
+    entropy_coefficient: 0.01 # Improves exploration by adding entropy loss to the optimization objective. High value is more exploration.
+    loss_critic_type: l2 # Critic loss function type. L2 is Mean Squared Error.
 
 model:
   results_dir: results
