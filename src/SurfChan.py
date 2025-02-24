@@ -102,12 +102,21 @@ class SurfChan():
         self.env = create_torchrl_env(self, self.config.infer.map, True)
 
         action = self.env.env._fake_action()
-        action[0] = 1.0 # forward
         action[self.env.env.button_count] = 0.7 # look right
         action[self.env.env.button_count + 1] = 0.5 # vertical center
+        i = 0
         while not self.env.is_closed:
-            await asyncio.sleep(0.034) # 30 fps
+            i += 1
+            if i % 2 == 0:
+                i = 0
+                action[0] = 1.0
+                action[1] = 0.0
+            else:
+                action[0] = 0.0
+                action[1] = 1.0
+            
             self.env.env.step(action)
+            await asyncio.sleep(0.034) # 30 fps
     
     async def _create_gui(self):
         self.gui_socket = await asyncio.start_server(self._handle_gui_connection, self.config.gui.host, self.config.gui.port)

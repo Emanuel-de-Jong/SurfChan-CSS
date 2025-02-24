@@ -37,7 +37,7 @@ class SCGUI():
 
         threading.Thread(target=self.start_socket_loop, daemon=True).start()
 
-        root.after(100, self.process_queue)
+        root.after(10, self.process_queue)
         root.mainloop()
 
     def start_socket_loop(self):
@@ -62,7 +62,7 @@ class SCGUI():
             print(f"Connection error: {e}")
 
     def process_queue(self):
-        while not self.queue.empty():
+        if not self.queue.empty():
             message = self.queue.get_nowait()
             self.update_buttons(message)
         
