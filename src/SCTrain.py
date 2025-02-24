@@ -18,6 +18,9 @@ from SCEnv import create_torchrl_env
 from SCTimer import sc_timer
 
 class SCTrain():
+    def __init__(self, surfchan):
+        self.surfchan = surfchan
+
     async def train(self):
         self.config = get_config()
         self.collector_conf = self.config.train.collector
@@ -34,7 +37,7 @@ class SCTrain():
         should_compile = self.config.train.should_compile
         compile_mode = "reduce-overhead" if should_compile else None
         
-        self.env = create_torchrl_env(self.config.train.map, should_run_gui=False)
+        self.env = create_torchrl_env(self.surfchan, self.config.train.map)
         
         self.models, self.stats = get_models(self.env, self.device)
 

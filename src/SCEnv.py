@@ -52,8 +52,9 @@ class SCEnv(gym.Env):
         self.truncated = False
         self.time_till_truncate = None
     
-    async def init(self, map_name, should_run_gui, should_run_ai):
-        await self.game.init(map_name, should_run_gui, should_run_ai)
+    async def init(self, surfchan, map_name, should_run_ai):
+        self.surfchan = surfchan
+        await self.game.init(surfchan, map_name, should_run_ai)
     
     def set_target_step_time(self, avg_step_time):
         # Steps are never shorter than target_step_time but occasionally longer. This balances it out.
@@ -153,7 +154,7 @@ class SCEnv(gym.Env):
             self.game.close()
 
 config = get_config()
-def create_torchrl_env(map, base_only=False, should_run_gui=True, should_run_ai=True):
+def create_torchrl_env(surfchan, map, base_only=False, should_run_ai=True):
     global config
 
     env = GymEnv(config.env.name)
@@ -165,6 +166,6 @@ def create_torchrl_env(map, base_only=False, should_run_gui=True, should_run_ai=
         # env.append_transform(DoubleToFloat())
         env.append_transform(VecNorm(in_keys=["pixels"]))
     
-    run_async(env.env.init(map, should_run_gui, should_run_ai))
+    run_async(env.env.init(surfchan, map, should_run_ai))
     
     return env

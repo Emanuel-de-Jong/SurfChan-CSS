@@ -18,6 +18,9 @@ from SCEnv import create_torchrl_env
 from SCTimer import sc_timer
 
 class SCInfer():
+    def __init__(self, surfchan):
+        self.surfchan = surfchan
+    
     async def infer(self):
         self.config = get_config()
         
@@ -25,7 +28,7 @@ class SCInfer():
 
         self.device = get_torch_device()
         
-        self.env = create_torchrl_env(self.config.infer.map)
+        self.env = create_torchrl_env(self.surfchan, self.config.infer.map)
         
         self.models, self.stats = get_models(self.env, self.device)
 

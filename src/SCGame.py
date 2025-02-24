@@ -70,21 +70,18 @@ class SCGame:
     css_process = None
     last_message = None
     should_run_ai = None
-    gui = None
     css_window_size = None
 
     def __init__(self, env):
         self.env = env
         self.config = get_config()
 
-    async def init(self, map_name, should_run_gui, should_run_ai):
+    async def init(self, surfchan, map_name, should_run_ai):
         print(f"Initializing game...")
         try:
+            self.surfchan = surfchan
             self.should_run_ai = should_run_ai
             await self.change_map(map_name)
-
-            if should_run_gui:
-                self.gui = SCGUI()
 
             await self.init_server()
             await self.init_socket()
@@ -141,7 +138,7 @@ class SCGame:
     async def handle_client(self, reader, writer):
         try:
             addr = writer.get_extra_info('peername')
-            print(f"Connected by {addr}")
+            print(f"Connected by css server {addr}")
 
             self.socket_writer = writer
 
@@ -153,7 +150,7 @@ class SCGame:
                     break
 
                 if not data:
-                    print(f"Connection closed by {addr}")
+                    print(f"Connection closed by css server {addr}")
                     break
 
                 message_str = data.decode()
@@ -222,8 +219,7 @@ class SCGame:
             "-exec", "autoexec", "+connect", server_ip, "-w", window_size, "-h", window_size])
     
     async def step(self, buttons, mouseH, mouseV):
-        if self.gui is not None:
-            self.gui.update(buttons)
+        await self.surfchan.send_gui_message(buttons)
 
         message_data = '0'
         if self.should_run_ai:

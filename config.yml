@@ -47,6 +47,10 @@ server:
   port: 27015
   close_on_script_close: True
 
+gui:
+  host: 127.0.0.1
+  port: 27016
+
 maps:
   beginner:
     start_angle: 90.0
