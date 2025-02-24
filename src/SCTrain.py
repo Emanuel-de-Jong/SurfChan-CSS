@@ -34,7 +34,7 @@ class SCTrain():
         should_compile = self.config.train.should_compile
         compile_mode = "reduce-overhead" if should_compile else None
         
-        self.env = create_torchrl_env(self.config.train.map)
+        self.env = create_torchrl_env(self.config.train.map, should_run_gui=False)
         
         self.models, self.stats = get_models(self.env, self.device)
 

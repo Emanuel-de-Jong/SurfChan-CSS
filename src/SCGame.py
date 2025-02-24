@@ -9,6 +9,7 @@ import mss
 import cv2
 from enum import Enum
 from sc_config import get_config
+from SCGUI import SCGUI
 
 class MESSAGE_TYPE(Enum):
     INIT = 1
@@ -68,17 +69,22 @@ class SCGame:
     message_queue = None
     css_process = None
     last_message = None
-    should_run_ai = True
+    should_run_ai = None
+    gui = None
     css_window_size = None
 
     def __init__(self, env):
         self.env = env
         self.config = get_config()
 
-    async def init(self, map_name):
-        print(f"Initializing game with map {map_name}...")
+    async def init(self, map_name, should_run_gui, should_run_ai):
+        print(f"Initializing game...")
         try:
+            self.should_run_ai = should_run_ai
             await self.change_map(map_name)
+
+            if should_run_gui:
+                self.gui = SCGUI()
 
             await self.init_server()
             await self.init_socket()
@@ -216,6 +222,9 @@ class SCGame:
             "-exec", "autoexec", "+connect", server_ip, "-w", window_size, "-h", window_size])
     
     async def step(self, buttons, mouseH, mouseV):
+        if self.gui is not None:
+            self.gui.update(buttons)
+
         message_data = '0'
         if self.should_run_ai:
             message_data = f'1,{buttons},{mouseH},{mouseV}'
