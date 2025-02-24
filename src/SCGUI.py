@@ -8,6 +8,15 @@ _WINDOW_PADDING = 25
 _PRESSED_COLOR = (128, 128, 128)
 _RELEASED_COLOR = (255, 255, 255)
 
+def create_theme(color):
+    with dpg.theme() as theme:
+        with dpg.theme_component(dpg.mvButton):
+            dpg.add_theme_color(dpg.mvThemeCol_Button, color, category=dpg.mvThemeCat_Core)
+    return theme
+
+_PRESSED_THEME = create_theme(_PRESSED_COLOR)
+_RELEASED_THEME = create_theme(_RELEASED_COLOR)
+
 class _GUIButton:
     def __init__(self, label, row, col):
         self.label = label
@@ -16,11 +25,12 @@ class _GUIButton:
         x = _GRID_SIZE * col + _BUTTON_PADDING
         y = _GRID_SIZE * row + _BUTTON_PADDING + _TOOLBAR_HEIGHT
         size = _GRID_SIZE - _BUTTON_PADDING * 2
+
         dpg.add_button(label=label, width=size, height=size, pos=(x, y), tag=self.button_id)
+        dpg.bind_item_theme(self.button_id, _RELEASED_THEME)
 
     def update(self, pressed):
-        # dpg.configure_item(self.button_id, color=_PRESSED_COLOR if pressed else _RELEASED_COLOR)
-        pass
+        dpg.bind_item_theme(self.button_id, _PRESSED_THEME if pressed else _RELEASED_THEME)
 
 class SCGUI:
     current_buttons = set()
@@ -32,7 +42,8 @@ class SCGUI:
         vp_height = window_height + _WINDOW_PADDING * 2
 
         dpg.create_context()
-        dpg.create_viewport(title="SurfChan", width=vp_width, height=vp_height)
+        dpg.create_viewport(title="SurfChan", width=vp_width, height=vp_height, always_on_top=True)
+        dpg.setup_dearpygui()
 
         with dpg.window(label="SurfChan", width=window_width, height=window_height):
             self.buttons = {
@@ -44,16 +55,7 @@ class SCGUI:
                 'j': _GUIButton('Jump', 2, 2),
             }
 
-        dpg.setup_dearpygui()
         dpg.show_viewport()
-
-        loop = asyncio.get_event_loop()
-        loop.create_task(self.run())
-
-    async def run(self):
-        while dpg.is_dearpygui_running():
-            dpg.render_dearpygui_frame()
-            await asyncio.sleep(0.1)
 
     def update(self, button_str):
         pressed_buttons = set(button_str)
@@ -62,19 +64,7 @@ class SCGUI:
         
         self.current_buttons = pressed_buttons
 
-async def _test():
-    gui = SCGUI()
-
-    i = 0
-    while True:
-        i += 1
-        if i % 2 == 0:
-            i = 0
-            gui.update("f")
-        else:
-            gui.update("j")
-
-        await asyncio.sleep(1)
-
 if __name__ == "__main__":
-    asyncio.run(_test())
+    gui = SCGUI()
+    dpg.start_dearpygui()
+    dpg.destroy_context()
