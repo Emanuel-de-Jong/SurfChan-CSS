@@ -22,11 +22,6 @@ class SurfChan():
     env = None
     train = None
     infer = None
-    gui_process = None
-    gui_socket = None
-    gui_writer = None
-    gui_send_frequency = 0.1
-    last_gui_send_time = None
 
     async def run(self):
         try:
@@ -68,8 +63,6 @@ class SurfChan():
                 self.infer.close()
             if self.env is not None:
                 self.env.close()
-            if self.gui_process is not None:
-                self.gui_process.kill()
             
             tasks = [task for task in asyncio.all_tasks() if task is not asyncio.current_task()]
             if tasks:
@@ -90,15 +83,11 @@ class SurfChan():
     
     async def _create_infer(self):
         print("Mode: Infer")
-        await self._create_gui()
-        
         self.infer = SCInfer(self)
         await self.infer.infer()
     
     async def _create_fake_infer(self):
         print("Mode: Fake Infer")
-        await self._create_gui()
-
         self.env = create_torchrl_env(self, self.config.infer.map, True)
 
         action = self.env.env._fake_action()
@@ -117,50 +106,6 @@ class SurfChan():
             
             self.env.env.step(action)
             await asyncio.sleep(0.034) # 30 fps
-    
-    async def _create_gui(self):
-        self.gui_socket = await asyncio.start_server(self._handle_gui_connection, self.config.gui.host, self.config.gui.port)
-        self.gui_process = subprocess.Popen(["python", "src/SCGUI.py"])
-        await asyncio.sleep(2)
-    
-    async def _handle_gui_connection(self, reader, writer):
-        try:
-            addr = writer.get_extra_info('peername')
-            print(f"Connected by gui {addr}")
-
-            self.gui_writer = writer
-
-            while reader is not None:
-                try:
-                    data = await reader.read(8000)
-                except OSError:
-                    break
-
-                if not data:
-                    print(f"Connection closed by gui {addr}")
-                    break
-        except asyncio.CancelledError:
-            pass
-        finally:
-            self.gui_writer = None
-            if writer is not None:
-                writer.close()
-    
-    async def send_gui_message(self, message):
-        if not self.gui_writer or self.gui_writer.is_closing():
-            return
-        
-        if self.last_gui_send_time is None:
-            self.last_gui_send_time = time.perf_counter()
-        else:
-            elapsed = time.perf_counter() - self.last_gui_send_time
-            if elapsed < self.gui_send_frequency:
-                return
-            
-            self.last_gui_send_time = time.perf_counter()
-
-        self.gui_writer.write(message.encode())
-        await self.gui_writer.drain()
 
 if __name__ == "__main__":
     surfchan = SurfChan()

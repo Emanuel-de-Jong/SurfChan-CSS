@@ -9,7 +9,6 @@ import mss
 import cv2
 from enum import Enum
 from sc_config import get_config
-from SCGUI import SCGUI
 
 class MESSAGE_TYPE(Enum):
     INIT = 1
@@ -219,8 +218,6 @@ class SCGame:
             "-exec", "autoexec", "+connect", server_ip, "-w", window_size, "-h", window_size])
     
     async def step(self, buttons, mouseH, mouseV):
-        await self.surfchan.send_gui_message(buttons)
-
         message_data = '0'
         if self.should_run_ai:
             message_data = f'1,{buttons},{mouseH},{mouseV}'
