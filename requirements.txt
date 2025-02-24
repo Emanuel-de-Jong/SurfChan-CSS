@@ -1,4 +1,3 @@
-dearpygui
 gymnasium==0.29.1
 matplotlib
 mss
