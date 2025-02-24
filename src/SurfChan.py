@@ -108,9 +108,9 @@ class SurfChan():
             self.env.env.step(action)
     
     async def _create_gui(self):
+        self.gui_socket = await asyncio.start_server(self._handle_gui_connection, self.config.gui.host, self.config.gui.port)
         self.gui_process = subprocess.Popen(["python", "src/SCGUI.py"])
         await asyncio.sleep(2)
-        self.gui_socket = await asyncio.start_server(self._handle_gui_connection, self.config.gui.host, self.config.gui.port)
     
     async def _handle_gui_connection(self, reader, writer):
         try:
