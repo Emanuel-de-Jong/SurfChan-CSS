@@ -73,6 +73,9 @@ class SurfChan():
         print("Mode: Play")
         self.env = create_torchrl_env(self.config.infer.map, True)
         self.env.env.game.should_run_ai = False
+        while not self.env.is_closed:
+            await asyncio.sleep(0.2)
+            obs, reward, terminated, truncated, _ = self.env.env.step(self.env.env._fake_action())
     
     async def create_train(self):
         print("Mode: Train")

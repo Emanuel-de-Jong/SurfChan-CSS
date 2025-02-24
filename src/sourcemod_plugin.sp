@@ -186,16 +186,16 @@ void HandleStep(const char[] data) {
     SepStringBig(data, ',', sepData, sepDataCount);
 
     g_shouldRunAI = StringToInt(sepData[0]) == 1;
-    if (!g_shouldRunAI) return;
+    if (g_shouldRunAI) {
+        g_mouseH = StringToFloat(sepData[2]);
+        g_mouseV = StringToFloat(sepData[3]);
 
-    g_mouseH = StringToFloat(sepData[2]);
-    g_mouseV = StringToFloat(sepData[3]);
+        ResetButtons(g_buttons);
 
-    ResetButtons(g_buttons);
-
-    for (int i = 0; i < g_buttonCount; i++) {
-        if (StrContains(sepData[1], g_buttonTypes[i]) != -1) {
-            SetTrieValue(g_buttons, g_buttonTypes[i], 1);
+        for (int i = 0; i < g_buttonCount; i++) {
+            if (StrContains(sepData[1], g_buttonTypes[i]) != -1) {
+                SetTrieValue(g_buttons, g_buttonTypes[i], 1);
+            }
         }
     }
 

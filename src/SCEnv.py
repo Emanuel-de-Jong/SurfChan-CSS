@@ -75,7 +75,7 @@ class SCEnv(gym.Env):
         
         if self.time_till_truncate is None:
             self.time_till_truncate = time.perf_counter()
-        elif time.perf_counter() - self.time_till_truncate >= self.truncate_time:
+        elif self.game.should_run_ai and time.perf_counter() - self.time_till_truncate >= self.truncate_time:
                 self.truncated = True
                 obs, _ = self.reset()
                 return obs, 0.0, self.terminated, True, {}
@@ -84,6 +84,7 @@ class SCEnv(gym.Env):
         reward = self._calc_reward(player_pos, total_velocity)
 
         # print(obs)
+        # print(reward)
 
         return obs, reward, self.terminated, self.truncated, {}
     
