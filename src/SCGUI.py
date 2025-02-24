@@ -1,39 +1,39 @@
 import tkinter as tk
 
+class _GUIButton():
+    def __init__(self, root, label, row, col):
+        self.label = tk.Label(root, text=label, width=7, height=7)
+        self.label.grid(row=row, column=col, padx=4, pady=4)
+
+    def update(self, pressed):
+        self.label.config(bg="gray" if pressed else "white")
+
 class SCGUI():
+    current_buttons = set()
+
     def __init__(self):
-        self.root = tk.Tk()
-        self.root.title("SurfChan")
+        root = tk.Tk()
+        root.title("SurfChan")
+        self.root = root
 
-        self.buttons_map = {
-            'f': ('↑', 1, 1),
-            'b': ('↓', 2, 1),
-            'l': ('←', 2, 0),
-            'r': ('→', 2, 2),
-            'c': ('Crouch', 4, 0),
-            'j': ('Jump', 4, 2)
-        }
+        buttons = {}
+        buttons['f'] = _GUIButton(root, '↑', 1, 1)
+        buttons['b'] = _GUIButton(root, '↓', 2, 1)
+        buttons['l'] = _GUIButton(root, '←', 2, 0)
+        buttons['r'] = _GUIButton(root, '→', 2, 2)
+        buttons['c'] = _GUIButton(root, 'Crouch', 4, 0)
+        buttons['j'] = _GUIButton(root, 'Jump', 4, 2)
+        self.buttons = buttons
 
-        self.buttons = {}
-        for key, (label, row, col) in self.buttons_map.items():
-            btn = tk.Button(self.root, text=label, width=10, height=3, relief=tk.RAISED)
-            btn.grid(row=row, column=col, padx=5, pady=5)
-            self.buttons[key] = btn
+        self.update("")
 
-        self.current_buttons = set()
+    def update(self, button_str):
+        pressed_buttons = list(button_str)
+        for key, button in self.buttons.items():
+            button.update(key in pressed_buttons)
+        
+        self.current_buttons = pressed_buttons
 
-        self._update()
-
-    def update(self, pressed_buttons):
-        pressed_set = set(pressed_buttons)
-
-        for key, btn in self.buttons.items():
-            if key in pressed_set and key not in self.current_buttons:
-                btn.config(relief=tk.SUNKEN)
-            elif key not in pressed_set and key in self.current_buttons:
-                btn.config(relief=tk.RAISED)
-
-        self.current_buttons = pressed_set
         self._update()
 
     def _update(self):
