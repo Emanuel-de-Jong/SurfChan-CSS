@@ -40,14 +40,9 @@ class SurfChan():
                     self.mode = MODE.INFER
                 elif mode_str.startswith("f"):
                     self.mode = MODE.FAKE_INFER
-            
-            if self.mode != MODE.TRAIN:
-                await self._create_gui()
 
             if self.mode == MODE.PLAY:
                 await self._create_play()
-                while True:
-                    await asyncio.sleep(1)
             elif self.mode == MODE.TRAIN:
                 await self._create_train()
             elif self.mode == MODE.INFER:
@@ -92,11 +87,15 @@ class SurfChan():
     
     async def _create_infer(self):
         print("Mode: Infer")
+        await self._create_gui()
+        
         self.infer = SCInfer(self)
         await self.infer.infer()
     
     async def _create_fake_infer(self):
         print("Mode: Fake Infer")
+        await self._create_gui()
+
         self.env = create_torchrl_env(self, self.config.infer.map, True)
 
         action = self.env.env._fake_action()

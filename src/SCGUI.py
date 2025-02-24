@@ -1,4 +1,5 @@
 import asyncio
+import threading
 import tkinter as tk
 from sc_config import get_config
 
@@ -12,6 +13,7 @@ class _GUIButton():
 
 class SCGUI():
     current_buttons = set()
+    queue = asyncio.Queue()
 
     def __init__(self):
         self.config = get_config()
@@ -30,20 +32,21 @@ class SCGUI():
             'j': _GUIButton(root, 'Jump', 4, 2)
         }
 
-        root.after(100, self.start_socket_loop)
+        threading.Thread(target=self.start_socket_loop, daemon=True).start()
+
+        root.after(100, self.process_queue)
         root.mainloop()
 
     def start_socket_loop(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.create_task(self.handle_server())
-        loop.run_forever()
+        loop.run_until_complete(self.handle_server())
 
     async def handle_server(self):
         try:
             reader, writer = await asyncio.open_connection(self.config.gui.host, self.config.gui.port)
-            
             print("Connected to server")
+
             while True:
                 data = await reader.read(1024)
                 if not data:
@@ -51,9 +54,16 @@ class SCGUI():
                     break
 
                 message = data.decode().strip()
-                self.root.after(0, self.update_buttons, message)
+                await self.queue.put(message)
         except Exception as e:
             print(f"Connection error: {e}")
+
+    def process_queue(self):
+        while not self.queue.empty():
+            message = self.queue.get_nowait()
+            self.update_buttons(message)
+        
+        self.root.after(100, self.process_queue)
 
     def update_buttons(self, button_str):
         pressed_buttons = set(button_str)
