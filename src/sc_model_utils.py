@@ -109,16 +109,16 @@ def create_models(env, device):
     )
 
     # TODO: Remove
-    class DebugCNNWrapper(torch.nn.Module):
-        def __init__(self, cnn):
-            super().__init__()
-            self.cnn = cnn
+    # class DebugCNNWrapper(torch.nn.Module):
+    #     def __init__(self, cnn):
+    #         super().__init__()
+    #         self.cnn = cnn
 
-        def forward(self, x):
-            print(x)
-            print(x.shape)
-            return self.cnn(x)
-    common_cnn = DebugCNNWrapper(common_cnn)
+    #     def forward(self, x):
+    #         print(x)
+    #         print(x.shape)
+    #         return self.cnn(x)
+    # common_cnn = DebugCNNWrapper(common_cnn)
 
     common_cnn_output = common_cnn(torch.ones(input_shape, device=device))
     common_mlp = MLP(

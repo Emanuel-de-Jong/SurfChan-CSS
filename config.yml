@@ -36,7 +36,7 @@ model:
 
 env:
   name: SurfChan
-  game_speed: 2.5
+  game_speed: 3.0
   seconds_to_finish: 6
 
 css:
