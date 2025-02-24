@@ -4,12 +4,15 @@ import tkinter as tk
 from sc_config import get_config
 
 class _GUIButton():
+    _RELEASED_COLOR = "white"
+    _PRESSED_COLOR = "gray"
+
     def __init__(self, root, label, row, col):
-        self.label = tk.Label(root, text=label, width=7, height=3)
+        self.label = tk.Label(root, text=label, width=7, height=3, bg=self._RELEASED_COLOR)
         self.label.grid(row=row, column=col, padx=4, pady=4)
 
     def update(self, pressed):
-        self.label.config(bg="gray" if pressed else "white")
+        self.label.config(bg=self._PRESSED_COLOR if pressed else self._RELEASED_COLOR)
 
 class SCGUI():
     current_buttons = set()
@@ -63,7 +66,7 @@ class SCGUI():
             message = self.queue.get_nowait()
             self.update_buttons(message)
         
-        self.root.after(100, self.process_queue)
+        self.root.after(10, self.process_queue)
 
     def update_buttons(self, button_str):
         pressed_buttons = set(button_str)

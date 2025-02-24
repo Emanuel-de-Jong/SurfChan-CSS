@@ -2,6 +2,7 @@ import sys
 import asyncio
 import traceback
 import subprocess
+import time
 from enum import Enum
 import numpy as np
 import gymnasium as gym
@@ -24,6 +25,8 @@ class SurfChan():
     gui_process = None
     gui_socket = None
     gui_writer = None
+    gui_send_frequency = 0.1
+    last_gui_send_time = None
 
     async def run(self):
         try:
@@ -137,6 +140,15 @@ class SurfChan():
     async def send_gui_message(self, message):
         if not self.gui_writer or self.gui_writer.is_closing():
             return
+        
+        if self.last_gui_send_time is None:
+            self.last_gui_send_time = time.perf_counter()
+        else:
+            elapsed = time.perf_counter() - self.last_gui_send_time
+            if elapsed < self.gui_send_frequency:
+                return
+            
+            self.last_gui_send_time = time.perf_counter()
 
         self.gui_writer.write(message.encode())
         await self.gui_writer.drain()
