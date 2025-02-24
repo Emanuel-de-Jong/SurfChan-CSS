@@ -185,7 +185,7 @@ class SCTrain():
         
         loss_sum.backward()
         torch.nn.utils.clip_grad_norm_(
-            self.models.loss_module.parameters(), max_norm=self.optimizer_conf.max_gradient_norm
+            self.models.loss_module.parameters(), max_norm=self.loss_conf.max_gradient_norm
         )
 
         self.models.optimizer.step()

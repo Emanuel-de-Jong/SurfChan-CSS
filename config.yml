@@ -17,7 +17,6 @@ train:
     lr: 0.00025
     epsilon: 0.000001 # Small value added to numbers in optimizers to prevent division by zero.
     weight_decay: 0.0 # Discourages large weights to prevent overfitting. 0.0 means unused.
-    max_gradient_norm: 0.5 # For gradient clipping to prevent exploding gradients by capping their norm.
     anneal_lr: True # Gradually reduces the learning rate during training.
   loss:
     mini_batches_per_batch: 4
@@ -28,6 +27,7 @@ train:
     anneal_clip_epsilon: True # Reduces clipping value over time to gradually make adjustments smaller.
     critic_coefficient: 1.0 # How much the critic loss contributes to the total loss.
     entropy_coefficient: 0.01 # Improves exploration by adding entropy loss to the optimization objective. High value is more exploration.
+    max_gradient_norm: 0.5 # For gradient clipping to prevent exploding gradients by capping their norm.
     loss_critic_type: l2 # Critic loss function type. L2 is Mean Squared Error.
 
 model:

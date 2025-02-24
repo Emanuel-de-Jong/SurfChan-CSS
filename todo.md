@@ -1,7 +1,6 @@
 # TODO
 
 ### **0.x:** Trainable to see if model improves at all
-- Check if hyperparameters are used correctly in code
 - check if transform breaks step reward return
 - check CNN input matches screenshot
 - check lr change
