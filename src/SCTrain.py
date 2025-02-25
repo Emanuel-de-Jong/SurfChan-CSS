@@ -109,9 +109,8 @@ class SCTrain():
             collected_frames += frames_in_batch
             pbar.update(frames_in_batch)
 
-            episode_rewards = data["next", "episode_reward"]
-            if len(episode_rewards) > 0 and len(episode_rewards[0]) > 0:
-                metrics_to_log.update({"train/reward": episode_rewards[0].mean().item()})
+            if len(data["next", "episode_reward"]) > 0:
+                metrics_to_log.update({"train/reward": data["next", "episode_reward"].mean().item()})
 
             sc_timer.start("training", "tb")
             for j in range(self.loss_conf.ppo_epochs):
