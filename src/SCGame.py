@@ -223,10 +223,10 @@ class SCGame:
         self.css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", \
             "-exec", "autoexec", "+connect", server_ip, "-w", window_size, "-h", window_size])
     
-    async def step(self, buttons, mouseH, mouseV):
+    async def step(self, game_action):
         message_data = '0'
         if self.should_run_ai:
-            message_data = f'1,{buttons},{mouseH},{mouseV}'
+            message_data = f'1,{game_action["buttons"]},{game_action["mouse_h"]},{game_action["mouse_v"]}'
         
         await self.send_message(MESSAGE_TYPE.STEP, message_data)
 

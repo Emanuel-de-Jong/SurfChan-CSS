@@ -81,23 +81,32 @@ class SCEnv(gym.Env):
                 obs, _ = self.reset()
                 return obs, 0.0, self.terminated, True, {}
 
-        obs, player_pos, total_velocity = self._game_step(action)
-        reward = self._calc_reward(player_pos, total_velocity)
+        game_action = self._action_to_game(action)
+        obs, player_pos, total_velocity = self._game_step(game_action)
+        reward = self._calc_reward(game_action, player_pos, total_velocity)
 
         # print(obs)
         # print(reward)
 
         return obs, reward, self.terminated, self.truncated, {}
     
-    def _game_step(self, action):
-        game_buttons = ""
-        for i in range(self.button_count):
-            game_buttons += self.button_model_to_game[i] if action[i] > 0.5 else ""
-        
-        game_mouseH = action[self.button_count] * 3.6 - 1.8
-        game_mouseV = action[self.button_count + 1] * 1.8 - 0.9
+    def _action_to_game(self, action):
+        game_action = {
+            "buttons": "",
+            "mouse_h": 0.0,
+            "mouse_v": 0.0
+        }
 
-        pixels, player_pos, total_velocity = run_async(self.game.step(game_buttons, game_mouseH, game_mouseV))
+        for i in range(self.button_count):
+            game_action["buttons"] += self.button_model_to_game[i] if action[i] > 0.5 else ""
+        
+        game_action["mouse_h"] = action[self.button_count] * 3.6 - 1.8
+        game_action["mouse_v"] = action[self.button_count + 1] * 1.8 - 0.9
+
+        return game_action
+    
+    def _game_step(self, game_action):
+        pixels, player_pos, total_velocity = run_async(self.game.step(game_action))
 
         # write_to_log(pixels[0][0])
         pixels = np.transpose(pixels, (2, 0, 1)).astype(np.float32) / 255.0
@@ -105,7 +114,7 @@ class SCEnv(gym.Env):
 
         return obs, player_pos, total_velocity
 
-    def _calc_reward(self, player_pos, total_velocity):
+    def _calc_reward(self, game_action, player_pos, total_velocity):
         reward = -0.1
         map = self.game.map
         axis = map.axis
@@ -141,7 +150,8 @@ class SCEnv(gym.Env):
     def reset(self, seed=None, options=None):
         run_async(self.game.reset())
         self._clear_attributes()
-        obs, player_pos, total_velocity = self._game_step(self._fake_action())
+        game_action = self._action_to_game(self._fake_action())
+        obs, player_pos, total_velocity = self._game_step(game_action)
         return obs, {}
     
     def _fake_action(self):

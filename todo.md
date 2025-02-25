@@ -1,7 +1,6 @@
 # TODO
 
 ### **0.x:** Trainable to see if model improves at all
-- CNN smaller first kernel
 - check reward system
     - reward for strafing right
     - is mouse movement velocity
@@ -13,6 +12,7 @@
 ### **1.0:** Good single stage finish
 - float16 (mixed precision/autocast) for less vram usage
 - check biggest performance hassles (measure class)
+- CNN smaller first kernel
 - copy content of tensorboard on model load
 - better rewards
 - simple model memory
