@@ -32,7 +32,7 @@ train:
 
 model:
   results_dir: results
-  img_size: 500
+  img_size: 512
 
 env:
   name: SurfChan

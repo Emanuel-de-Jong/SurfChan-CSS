@@ -70,6 +70,7 @@ class SCGame:
     last_message = None
     should_run_ai = None
     css_window_size = None
+    should_downscale_pixels = False
 
     def __init__(self, env):
         self.env = env
@@ -210,9 +211,14 @@ class SCGame:
             dst = os.path.join(css_path, "cstrike", "maps", map_path)
             if not os.path.exists(dst):
                 shutil.copy2(os.path.join(maps_dir_path, map_path), dst)
+        
+        window_size = self.config.model.img_size
+        if window_size < 500:
+            self.should_downscale_pixels = True
+            window_size = 500
+        window_size = str(window_size)
 
         css_exe_path = os.path.join(css_path, "hl2.exe")
-        window_size = str(self.config.model.img_size)
         print("Initializing CSS...")
         self.css_process = subprocess.Popen([css_exe_path, "-game", "cstrike", "-windowed", "-novid", \
             "-exec", "autoexec", "+connect", server_ip, "-w", window_size, "-h", window_size])
@@ -235,7 +241,10 @@ class SCGame:
 
         with mss.mss() as sct:
             pixels = np.array(sct.grab(self.css_window_size))
-            pixels = cv2.cvtColor(pixels, cv2.COLOR_BGRA2RGB)
+        
+        if self.should_downscale_pixels:
+            pixels = cv2.resize(pixels, (self.config.model.img_size, self.config.model.img_size), interpolation=cv2.INTER_LINEAR)
+        pixels = cv2.cvtColor(pixels, cv2.COLOR_BGRA2RGB)
         
         return pixels, player_pos, total_velocity
 
