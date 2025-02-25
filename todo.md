@@ -1,6 +1,7 @@
 # TODO
 
 ### **0.x:** Trainable to see if model improves at all
+- fix ground hit not detected
 - check sample_log_prob clamp not breaking
 
 ### **1.0:** Good single stage finish
