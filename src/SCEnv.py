@@ -47,7 +47,7 @@ class SCEnv(gym.Env):
     
     def _clear_attributes(self):
         self.last_player_dist = None
-        self.last_total_velocity = 0.0
+        self.last_total_velocity = None
         self.terminated = False
         self.truncated = False
         self.time_till_truncate = None
@@ -118,26 +118,36 @@ class SCEnv(gym.Env):
         reward = -0.1
         map = self.game.map
         axis = map.axis
+
+        # Punish counteractive buttons
+        # if 'l' in game_action["buttons"] and 'r' in game_action["buttons"]:
+        #     reward -= 0.1
+        # elif 'f' in game_action["buttons"] and 'b' in game_action["buttons"]:
+        #         reward -= 0.1
         
+        total_dist = abs(map.start_pos[axis] - map.finish_pos[axis])
+
         if self.last_player_dist is None:
             self.last_player_dist = abs(map.start_pos[axis] - map.finish_pos[axis])
         
         player_dist = abs(player_pos[axis] - map.finish_pos[axis])
         dist_diff = self.last_player_dist - player_dist
         if dist_diff > 0:
-            reward += 2
+            reward += 2 + dist_diff / total_dist
         elif dist_diff < -5:
-            reward -= 1
-        
-        velocity_diff = total_velocity - self.last_total_velocity
-        if velocity_diff > 0:
-            reward += 1
-        elif velocity_diff < -15:
-            reward -= 1
+            reward -= 2 + dist_diff / total_dist
+
+        if self.last_total_velocity is not None:
+            velocity_diff = total_velocity - self.last_total_velocity
+            if velocity_diff > 0:
+                reward += 1
+            elif velocity_diff < -15:
+                reward -= 1
 
         if self.last_player_dist < 25.0:
             self.terminated = True
-            reward += 25.0
+            time_multiplier = (1 - (time.perf_counter() - self.time_till_truncate) / self.truncate_time) * 5.0
+            reward += 5.0 + time_multiplier * 5.0
         elif player_pos[2] <= map.ground:
             self.terminated = True
             reward -= 5.0

@@ -1,12 +1,6 @@
 # TODO
 
 ### **0.x:** Trainable to see if model improves at all
-- check reward system
-    - reward for strafing right
-    - is mouse movement velocity
-    - check map axis
-    - multiply to reward higher change
-    - higher overall reward closer to finish
 - check sample_log_prob clamp not breaking
 
 ### **1.0:** Good single stage finish
