@@ -15,6 +15,7 @@ from torchrl.modules import (
     ActorValueOperator,
     NormalParamExtractor
 )
+from sc_utils import write_to_log
 
 class SCModels():
     actor=None
@@ -115,8 +116,7 @@ def create_models(env, device):
     #         self.cnn = cnn
 
     #     def forward(self, x):
-    #         print(x)
-    #         print(x.shape)
+    #         write_to_log(f"{x[0][0][0]}{x[1][0][0]}{x[2][0][0]}")
     #         return self.cnn(x)
     # common_cnn = DebugCNNWrapper(common_cnn)
 

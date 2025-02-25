@@ -11,7 +11,7 @@ from torchrl.envs import (
     RewardSum
 )
 from torchrl.envs.libs.gym import GymEnv
-from sc_utils import run_async
+from sc_utils import run_async, write_to_log
 from sc_model_utils import get_torch_device
 from sc_config import get_config
 from SCGame import SCGame
@@ -38,7 +38,7 @@ class SCEnv(gym.Env):
         self.size = self.config.model.img_size
 
         self.observation_space = gym.spaces.Dict({
-            "pixels": gym.spaces.Box(low=0, high=255, shape=(self.size, self.size, 3), dtype=np.uint8)
+            "pixels": gym.spaces.Box(low=0.0, high=1.0, shape=(3, self.size, self.size), dtype=np.float32)
         })
         self.observation_spec = self.observation_space
 
@@ -98,7 +98,11 @@ class SCEnv(gym.Env):
         game_mouseV = action[self.button_count + 1] * 1.8 - 0.9
 
         pixels, player_pos, total_velocity = run_async(self.game.step(game_buttons, game_mouseH, game_mouseV))
+
+        # write_to_log(pixels[0][0])
+        pixels = np.transpose(pixels, (2, 0, 1)).astype(np.float32) / 255.0
         obs = {"pixels": pixels}
+
         return obs, player_pos, total_velocity
 
     def _calc_reward(self, player_pos, total_velocity):
@@ -160,11 +164,10 @@ def create_torchrl_env(surfchan, map, base_only=False, should_run_ai=True):
     env = GymEnv(config.env.name)
     env = TransformedEnv(env).to(get_torch_device())
     if not base_only:
-        env.append_transform(RenameTransform(in_keys=["pixels"], out_keys=["pixels_int"]))
-        env.append_transform(ToTensorImage(from_int=True, in_keys=["pixels_int"], out_keys=["pixels"]))
         env.append_transform(RewardSum())
         # env.append_transform(DoubleToFloat())
-        env.append_transform(VecNorm(in_keys=["pixels"]))
+        # When using VecNorm, change the observation_space low=-np.inf, high=np.inf
+        # env.append_transform(VecNorm(in_keys=["pixels"]))
     
     run_async(env.env.init(surfchan, map, should_run_ai))
     

@@ -13,3 +13,7 @@ _background_thread.start()
 def run_async(coro):
     future = asyncio.run_coroutine_threadsafe(coro, _background_loop)
     return future.result()
+
+def write_to_log(line):
+    with open("log.txt", "a") as file:
+        file.write(f"{line}\n")

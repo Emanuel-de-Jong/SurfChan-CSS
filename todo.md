@@ -1,21 +1,17 @@
 # TODO
 
 ### **0.x:** Trainable to see if model improves at all
-- check if transform breaks step reward return
-- check CNN input matches screenshot
-- check lr change
-    - starting too low
-    - going low too fast
+- CNN smaller first kernel
 - check reward system
+    - reward for strafing right
     - is mouse movement velocity
     - check map axis
     - multiply to reward higher change
     - higher overall reward closer to finish
-- check value/critic model broken (does it even try to get better reward?)
 - check sample_log_prob clamp not breaking
 
 ### **1.0:** Good single stage finish
-- less vram usage
+- float16 (mixed precision/autocast) for less vram usage
 - check biggest performance hassles (measure class)
 - copy content of tensorboard on model load
 - better rewards
@@ -30,6 +26,7 @@
     - entropy regularization
     - LSTM/GRU layer
     - frame stacking/short memory
+    - experience replay
 
 ### **3.0:** General model for multiple maps
 - CSS auto select team

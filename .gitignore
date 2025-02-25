@@ -4,6 +4,7 @@ config_user.yml
 # Results
 results/
 results/logs/
+log.txt
 
 # Server
 css_server/server/*

@@ -3,6 +3,7 @@ import asyncio
 import traceback
 import subprocess
 import time
+import os
 from enum import Enum
 import numpy as np
 import gymnasium as gym
@@ -26,6 +27,9 @@ class SurfChan():
     async def run(self):
         try:
             self.config = get_config()
+
+            if os.path.exists("log.txt"):
+                os.remove("log.txt")
 
             gym.register(self.config.env.name, lambda: SCEnv())
 
