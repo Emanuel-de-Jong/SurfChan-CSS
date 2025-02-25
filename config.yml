@@ -21,13 +21,13 @@ train:
   loss:
     mini_batches_per_batch: 4
     gamma: 0.99 # Higher means future rewards are valued more than immediate rewards.
-    ppo_epochs: 3 # Number of times each mini batch is used during training.
+    ppo_epochs: 5 # Number of times each mini batch is used during training.
     gae_lambda: 0.95 # Smoothens GAE, changing bias vs variance balance in advantage. High value is high variance.
-    clip_epsilon: 0.1 # Controls clipping range to prevent drastic changes.
+    clip_epsilon: 0.2 # Controls clipping range to prevent drastic changes.
     anneal_clip_epsilon: True # Reduces clipping value over time to gradually make adjustments smaller.
-    critic_coefficient: 1.0 # How much the critic loss contributes to the total loss.
-    entropy_coefficient: 0.01 # Improves exploration by adding entropy loss to the optimization objective. High value is more exploration.
-    max_gradient_norm: 0.5 # For gradient clipping to prevent exploding gradients by capping their norm.
+    critic_coefficient: 0.95 # How much the critic loss contributes to the total loss.
+    entropy_coefficient: 0.02 # Improves exploration by adding entropy loss to the optimization objective. High value is more exploration.
+    max_gradient_norm: 1.2 # For gradient clipping to prevent exploding gradients by capping their norm.
     loss_critic_type: l2 # Critic loss function type. L2 is Mean Squared Error.
 
 model:
