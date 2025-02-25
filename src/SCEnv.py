@@ -115,7 +115,7 @@ class SCEnv(gym.Env):
         return obs, player_pos, total_velocity
 
     def _calc_reward(self, game_action, player_pos, total_velocity):
-        reward = -0.1
+        reward = 0.0
 
         # Punish counteractive buttons
         # if 'l' in game_action["buttons"] and 'r' in game_action["buttons"]:
@@ -137,12 +137,12 @@ class SCEnv(gym.Env):
             # Reward more closer to finish
             reward += 2 + dist_diff / total_dist
         elif dist_diff < -5: # Small buffer
-            reward -= 2 + dist_diff / total_dist
+            reward -= 2 + abs(dist_diff) / total_dist
 
         # Reward based on total velocity
         if self.last_total_velocity is not None:
             velocity_diff = total_velocity - self.last_total_velocity
-            if velocity_diff > 0:
+            if velocity_diff > 0 and dist_diff > 0:
                 reward += 1
             elif velocity_diff < -15: # Small buffer
                 reward -= 1
@@ -152,11 +152,11 @@ class SCEnv(gym.Env):
             self.terminated = True
             # Reward more for shorter time
             time_multiplier = (1 - (time.perf_counter() - self.time_till_truncate) / self.truncate_time) * 5.0
-            reward += 5.0 + time_multiplier * 5.0
+            reward += 10.0 + time_multiplier * 5.0
         # Punish falling on ground
         elif player_pos[2] <= map.ground:
             self.terminated = True
-            reward -= 5.0
+            reward -= 6.0
 
         self.last_player_dist = player_dist
         self.last_total_velocity = total_velocity

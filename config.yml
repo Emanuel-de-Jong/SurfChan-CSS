@@ -10,7 +10,7 @@ train:
   should_save: False
   should_compile: False
   collector:
-    # TODO: Change to 300
+    # TODO: Change to 350
     frames_per_batch: 50
     batches: 2
   optimizer:
@@ -36,7 +36,7 @@ model:
 
 env:
   name: SurfChan
-  game_speed: 1.0
+  game_speed: 3.0
   seconds_to_finish: 6
 
 css:
