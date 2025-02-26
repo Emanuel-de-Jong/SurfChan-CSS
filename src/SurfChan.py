@@ -8,7 +8,7 @@ from enum import Enum
 import numpy as np
 import gymnasium as gym
 from sc_config import get_config
-from SCEnv import SCEnv, create_torchrl_env
+from SCEnv import SCEnv, create_env
 from SCTrain import SCTrain
 from SCInfer import SCInfer
 from SCTimer import sc_timer
@@ -75,7 +75,7 @@ class SurfChan():
     
     async def _create_play(self):
         print("Mode: Play")
-        self.env = create_torchrl_env(self, self.config.infer.map, base_only=True, should_run_ai=False)
+        self.env = create_env(self, self.config.infer.map, base_only=True, should_run_ai=False)
         while not self.env.is_closed:
             await asyncio.sleep(0.2)
             obs, reward, terminated, truncated, _ = self.env.env.step(self.env.env._fake_action())
@@ -92,7 +92,7 @@ class SurfChan():
     
     async def _create_fake_infer(self):
         print("Mode: Fake Infer")
-        self.env = create_torchrl_env(self, self.config.infer.map, True)
+        self.env = create_env(self, self.config.infer.map, True)
 
         action = self.env.env._fake_action()
         action[self.env.env.button_count] = 0.7 # look right
