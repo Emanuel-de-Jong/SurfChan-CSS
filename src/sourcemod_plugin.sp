@@ -212,7 +212,9 @@ void HandleReset() {
     g_currentAngles[1] = g_startAngle;
     g_currentAngles[2] = 0.0;
 
-    TeleportEntity(g_client, g_startPos, g_currentAngles, NULL_VECTOR);
+    float velocity[3] = {0.0, 0.0, 0.0};
+
+    TeleportEntity(g_client, g_startPos, g_currentAngles, velocity);
 }
 
 public Action OnPlayerRunCmd(

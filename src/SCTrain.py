@@ -54,7 +54,8 @@ class SCTrain():
         self.model = PPO("CnnPolicy", self.env, device=self.device, verbose=1)
 
         logger = configure(os.path.join(self.config.model.results_dir, "logs"), ["tensorboard"])
-        self.model.set_logger(logger)
+        if self.config.train.should_save:
+            self.model.set_logger(logger)
 
         model_callbacks = ModelCallbacks()
 
