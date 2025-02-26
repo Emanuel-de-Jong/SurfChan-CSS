@@ -11,8 +11,8 @@ train:
   should_compile: False
   collector:
     # TODO: Change to 350
-    frames_per_batch: 50
-    batches: 2
+    frames_per_batch: 100
+    batches: 1
   optimizer:
     lr: 0.00025
     epsilon: 0.000001 # Small value added to numbers in optimizers to prevent division by zero.
