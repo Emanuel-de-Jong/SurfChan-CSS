@@ -5,7 +5,8 @@ numpy
 opencv-python
 pywin32
 pyyaml
+rich
+stable-baselines3
 tensorboard
 tensordict
-torchrl
 tqdm

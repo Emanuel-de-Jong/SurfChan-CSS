@@ -6,13 +6,13 @@ infer:
 
 train:
   map: beginner
-  should_resume: True
-  should_save: True
+  should_resume: False
+  should_save: False
   should_compile: False
   collector:
     # TODO: Change to 350
-    frames_per_batch: 350
-    batches: 100
+    frames_per_batch: 50
+    batches: 2
   optimizer:
     lr: 0.00025
     epsilon: 0.000001 # Small value added to numbers in optimizers to prevent division by zero.
@@ -36,7 +36,7 @@ model:
 
 env:
   name: SurfChan
-  game_speed: 3.0
+  game_speed: 1.0
   seconds_to_finish: 6
 
 css:

@@ -1,16 +1,6 @@
 import time
 import gymnasium as gym
 import numpy as np
-from torchrl.envs import (
-    TransformedEnv,
-    StepCounter,
-    RenameTransform,
-    ToTensorImage,
-    DoubleToFloat,
-    VecNorm,
-    RewardSum
-)
-from torchrl.envs.libs.gym import GymEnv
 from sc_utils import run_async, write_to_log
 from sc_model_utils import get_torch_device
 from sc_config import get_config
@@ -23,6 +13,8 @@ class SCEnv(gym.Env):
     mouse_count = 2
     button_model_to_game = ["f", "b", "l", "r", "j", "c"]
     dist_milestone_step = 5
+
+    metadata = {"render_modes": ["console"]}
 
     def __init__(self):
         super(SCEnv, self).__init__()
@@ -38,12 +30,10 @@ class SCEnv(gym.Env):
 
         self.size = self.config.model.img_size
 
-        self.observation_space = gym.spaces.Dict({
-            "pixels": gym.spaces.Box(low=0.0, high=1.0, shape=(3, self.size, self.size), dtype=np.float32)
-        })
+        self.observation_space = gym.spaces.Box(low=0, high=255, shape=(3, self.size, self.size), dtype=np.uint8)
         self.observation_spec = self.observation_space
 
-        self.action_space = gym.spaces.Box(low=0.0, high=1.0, shape=(self.output_count, ), dtype=np.float32)
+        self.action_space = gym.spaces.Box(low=-1.0, high=1.0, shape=(self.output_count, ), dtype=np.float32)
         self.action_spec = self.action_space
     
     def _clear_attributes(self):
@@ -98,10 +88,10 @@ class SCEnv(gym.Env):
         }
 
         for i in range(self.button_count):
-            game_action["buttons"] += self.button_model_to_game[i] if action[i] > 0.5 else ""
+            game_action["buttons"] += self.button_model_to_game[i] if action[i] > 0.0 else ""
         
-        game_action["mouse_h"] = action[self.button_count] * 3.6 - 1.8
-        game_action["mouse_v"] = action[self.button_count + 1] * 1.8 - 0.9
+        game_action["mouse_h"] = action[self.button_count] * 3.6 * 0.5
+        game_action["mouse_v"] = action[self.button_count + 1] * 1.8 * 0.5
 
         return game_action
     
@@ -109,8 +99,7 @@ class SCEnv(gym.Env):
         pixels, player_pos, total_velocity = run_async(self.game.step(game_action))
 
         # write_to_log(pixels[0][0])
-        pixels = np.transpose(pixels, (2, 0, 1)).astype(np.float32) / 255.0
-        obs = {"pixels": pixels}
+        obs = np.transpose(pixels, (2, 0, 1))
 
         return obs, player_pos, total_velocity
 
@@ -144,30 +133,29 @@ class SCEnv(gym.Env):
         return obs, {}
     
     def _fake_action(self):
-        action = np.zeros((self.output_count,), dtype=np.float32)
-        action[self.button_count] = 0.5
-        action[self.button_count + 1] = 0.5
-        return action
+        action = []
+        for i in range(self.output_count):
+            action.append(-1.0)
+        action[self.button_count] = 0.0
+        action[self.button_count + 1] = 0.0
+        return np.array(action, dtype=np.float32)
     
     async def change_map(self, map_name):
         await self.game.change_map(map_name)
+
+    def render(self):
+        pass
     
     def close(self):
         if self.game:
             self.game.close()
 
 config = get_config()
-def create_torchrl_env(surfchan, map, base_only=False, should_run_ai=True):
+def create_env(surfchan, map, base_only=False, should_run_ai=True):
     global config
 
-    env = GymEnv(config.env.name)
-    env = TransformedEnv(env).to(get_torch_device())
-    if not base_only:
-        env.append_transform(RewardSum())
-        # env.append_transform(DoubleToFloat())
-        # When using VecNorm, change the observation_space low=-np.inf, high=np.inf
-        # env.append_transform(VecNorm(in_keys=["pixels"]))
+    env = SCEnv()
     
-    run_async(env.env.init(surfchan, map, should_run_ai))
+    run_async(env.init(surfchan, map, should_run_ai))
     
     return env
