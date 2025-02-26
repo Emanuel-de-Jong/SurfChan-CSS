@@ -122,6 +122,9 @@ class SCEnv(gym.Env):
             self.terminated = True
             time_multiplier = 1 + (1 - ((time.perf_counter() - self.time_till_truncate) / self.truncate_time))
             reward += 15.0 * time_multiplier
+        elif player_pos[2] < map.ground:
+            self.terminated = True
+            reward -= 2.0
 
         return reward
 

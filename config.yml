@@ -56,4 +56,4 @@ maps:
     start_angle: 90.0
     start: [-128.0, 0.0, 372.0]
     finish: [-140, 2008, -376]
-    ground: -424.0
+    ground: -400.0
