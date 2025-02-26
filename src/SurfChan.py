@@ -76,9 +76,9 @@ class SurfChan():
     async def _create_play(self):
         print("Mode: Play")
         self.env = create_env(self, self.config.infer.map, base_only=True, should_run_ai=False)
-        while not self.env.is_closed:
+        while self.env is not None:
             await asyncio.sleep(0.2)
-            obs, reward, terminated, truncated, _ = self.env.env.step(self.env.env._fake_action())
+            obs, reward, terminated, truncated, _ = self.env.step(self.env._fake_action())
     
     async def _create_train(self):
         print("Mode: Train")
@@ -94,11 +94,11 @@ class SurfChan():
         print("Mode: Fake Infer")
         self.env = create_env(self, self.config.infer.map, True)
 
-        action = self.env.env._fake_action()
-        action[self.env.env.button_count] = 0.7 # look right
-        action[self.env.env.button_count + 1] = 0.5 # vertical center
+        action = self.env._fake_action()
+        action[self.env.button_count] = 0.7 # look right
+        action[self.env.button_count + 1] = 0.5 # vertical center
         i = 0
-        while not self.env.is_closed:
+        while self.env is not None:
             i += 1
             if i % 2 == 0:
                 i = 0
@@ -108,7 +108,7 @@ class SurfChan():
                 action[0] = 0.0
                 action[1] = 1.0
             
-            self.env.env.step(action)
+            self.env.step(action)
             await asyncio.sleep(0.034) # 30 fps
 
 if __name__ == "__main__":
