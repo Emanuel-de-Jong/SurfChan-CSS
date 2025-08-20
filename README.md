@@ -1,6 +1,8 @@
 # SurfChan
 Training and inference pipeline for a PPO model that can play Source Engine [surf](https://www.youtube.com/watch?v=3pCyKM2YWrI). Specifically on Counter-Strike: Source at the moment.
 
+https://github.com/user-attachments/assets/07009aa6-c184-462c-bb81-4122f6198c06
+
 > [!NOTE]
 > The `stable-baselines3` branch uses baselines3 instead of torchrl. The branch still misses many of the features `main` has, but it created the first training results on which improvement is statistically (and even visually!) noticable. I have given up on finding what causes the torchrl code to break the training data. Meaning if I continue with the project, it will be on the `stable-baselines3` branch.
 
