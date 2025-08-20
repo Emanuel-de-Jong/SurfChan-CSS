@@ -16,7 +16,11 @@ Training and inference pipeline for a PPO model that can play Source Engine [sur
     - For others, CPU is used: `pip install torch torchvision`
 - Setup server `css_server/create.md`.
 - Copy `config_user_template.yml` and rename it to `config_user.yml`. Then change the values.
-- Turn off Steam Overlay for CSS.
+- Change the CSS build to before the x64 update. Also disable Steam Overlay.
+    - In Steam, right click on the game in your library list and click `Properties...`.
+    - Uncheck the `Enable the Steam Overlay while in-game` slide.
+    - Go to the `Betas` tab and for `Beta Participation` select `previous_build`.
+    - Close the window. It will now start downloading the old version. Wait for it to finish.
 - Run `disable_server_internet.ps1` with admin privileges.
 - When using Windows 11, [remove rounded corners](https://github.com/valinet/Win11DisableRoundedCorners/releases).
 

@@ -1,11 +1,11 @@
 - Download
     - [steamcmd](https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip)
-    - [MetaMod](https://www.sourcemm.net/downloads.php?branch=stable)
+    - [MetaMod 1211](https://mms.alliedmods.net/mmsdrop/1.12/mmsource-1.12.0-git1211-windows.zip)
     - [SourceMod 7179](https://sm.alliedmods.net/smdrop/1.12/sourcemod-1.12.0-git7179-windows.zip)
 - Extract steamcmd to `steamcmd/`
 - Run `steamcmd/steamcmd.exe`
     - `force_install_dir [PATH_TO_REPO]\css_server\server`
     - `login anonymous`
-    - `app_update 232330 validate`
+    - `app_update 232330 -beta previous_build validate`
 - Extract MetaMod to `server/cstrike`
 - Extract SourceMod to `server/cstrike`
