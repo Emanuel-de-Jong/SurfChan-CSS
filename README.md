@@ -13,7 +13,7 @@ https://github.com/user-attachments/assets/07009aa6-c184-462c-bb81-4122f6198c06
 
 | | |
 | :---: | :---: |
-| ![](/Screenshots/.png) | ![](/Screenshots/.png) |
+| ![](/Screenshots/1-Training.png) | ![](/Screenshots/.png) |
 
 ## Usage
 ### Dependencies
