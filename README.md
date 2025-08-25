@@ -4,8 +4,8 @@ Training and inference pipeline for a PPO model that can play Source Engine [sur
 > [!NOTE]
 > The `stable-baselines3` branch uses baselines3 instead of torchrl. The branch still misses many of the features `main` has, but it created the first training results on which improvement is statistically (and even visually!) noticable. I have given up on finding what causes the torchrl code to break the training data. Meaning if I continue with the project, it will be on the `stable-baselines3` branch.
 
-**Active Development:** <br>
-**Last Change:** <br>
+**Active Development:** 2025-02-07 - 2025-02-26<br>
+**Last Change:** 2025-08-20<br>
 
 This is a video of a training run with baselines3 after 4 hours of training. The low quality is due to the increased game speed for faster training as well as recording with a phone. As you can see, the model already knows to move forward as far as possbile and even uses the ramp, with a small flick at the end, to get further.
 
