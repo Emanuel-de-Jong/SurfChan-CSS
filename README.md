@@ -65,3 +65,4 @@ c: crouch
 
 ### Inference output
 An array of 8 floats between 0.0 and 1.0 representing f to c and then mouse x and y.
+ 
