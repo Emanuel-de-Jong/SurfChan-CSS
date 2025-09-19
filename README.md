@@ -6,6 +6,7 @@ Training and inference pipeline for a PPO model that can play Source Engine [sur
 
 **Active Development:** 2025-02-07 - 2025-02-26<br>
 **Last Change:** 2025-08-20<br>
+**Highlights:** Machine Learning<br>
 
 This is a video of a training run with baselines3 after 4 hours of training. The low quality is due to the increased game speed for faster training as well as recording with a phone. As you can see, the model already knows to move forward as far as possbile and even uses the ramp, with a small flick at the end, to get further.
 
